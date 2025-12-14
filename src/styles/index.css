@@ -272,6 +272,67 @@ select:focus {
   font-size: 12px;
 }
 
+/* 空状态引导 */
+.sidebar-empty-guide {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.sidebar-hint {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* 已连接时的空状态提示 */
+.sidebar-empty-hint {
+  padding: 16px 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* 侧边栏底部操作区 */
+.sidebar-footer {
+  padding: 12px;
+}
+
+.sidebar-footer-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-footer-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.sidebar-footer-btn.connect {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.sidebar-footer-btn.connect:hover {
+  background: rgba(0, 122, 255, 0.08);
+}
+
 /* ============ Finder 文件树 ============ */
 .finder-tree {
   user-select: none;

@@ -10,6 +10,8 @@ import {
 } from 'react-resizable-panels'
 import {
     FolderPlus,
+    Folder,
+    Home,
     Plus,
     Minus,
     Columns,
@@ -225,9 +227,8 @@ const AppContent: React.FC = () => {
         )
     }
 
-    if (!vaultPath) {
-        return <Onboarding onSelectVault={selectVault} />
-    }
+    // 不再提前返回 Onboarding，让主界面始终显示
+    // 未连接状态通过侧边栏底部按钮处理
 
     // Handlers
     const handleCreateFolder = async (name: string) => {
@@ -342,44 +343,82 @@ const AppContent: React.FC = () => {
                     <>
                         <Panel defaultSize={25} minSize={25} maxSize={25} className="panel-sidebar">
                             <div className="sidebar-inner">
+                                {/* 侧边栏头部 - 只保留占位符对齐 */}
                                 <div className="sidebar-header">
                                     <span className="sidebar-spacer" />
-                                    <button
-                                        className="sidebar-btn"
-                                        onClick={() => setShowNewFolderDialog(true)}
-                                    >
-                                        <FolderPlus size={16} strokeWidth={1.5} />
-                                    </button>
                                 </div>
 
-                                {/* 点击空白处返回根目录 */}
+                                {/* 侧边栏内容 */}
                                 <div
                                     className="sidebar-content"
                                     onClick={(e) => {
-                                        // 只有点击空白处时才触发
                                         if (e.target === e.currentTarget) {
                                             selectFolder(null)
                                         }
                                     }}
                                 >
-                                    {fileTree.length === 0 ? (
-                                        <div className="sidebar-empty">空</div>
+                                    {vaultPath ? (
+                                        <>
+                                            {/* 根目录项 - 始终显示 */}
+                                            <div
+                                                className={`finder-tree-item root-item ${!activeFolder && !activeFile ? 'active' : ''}`}
+                                                onClick={() => selectFolder(null)}
+                                                style={{ paddingLeft: '12px' }}
+                                            >
+                                                <span className="finder-icon">
+                                                    <Home size={16} strokeWidth={1.5} />
+                                                </span>
+                                                <span className="finder-name">{vaultPath.split('/').pop()}</span>
+                                            </div>
+
+                                            {/* 子文件夹 */}
+                                            {fileTree.filter(n => n.isDirectory).length > 0 ? (
+                                                <FileTree
+                                                    nodes={fileTree}
+                                                    activeFilePath={activeFolder?.path || null}
+                                                    onFileSelect={openFile}
+                                                    onRename={(node) => {
+                                                        setRenameTarget(node)
+                                                        setShowRenameDialog(true)
+                                                    }}
+                                                    onDelete={handleDelete}
+                                                    getColor={getColor}
+                                                    onColorChange={setColor}
+                                                    isRootSelected={false}
+                                                />
+                                            ) : (
+                                                <div className="sidebar-empty-hint">
+                                                    在下方新建文件夹
+                                                </div>
+                                            )}
+                                        </>
                                     ) : (
-                                        <FileTree
-                                            nodes={fileTree}
-                                            activeFilePath={activeFolder?.path || null}
-                                            onFileSelect={openFile}
-                                            onRename={(node) => {
-                                                setRenameTarget(node)
-                                                setShowRenameDialog(true)
-                                            }}
-                                            onDelete={handleDelete}
-                                            getColor={getColor}
-                                            onColorChange={setColor}
-                                            rootName={vaultPath?.split('/').pop() || '根目录'}
-                                            isRootSelected={!activeFolder && !activeFile}
-                                            onRootSelect={() => selectFolder(null)}
-                                        />
+                                        <div className="sidebar-empty-guide">
+                                            <span className="sidebar-hint">
+                                                如果本地没有文件夹可以点击下方按钮新建一个文件夹，如果有以前的文件夹点击下方链接文件夹
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 底部操作按钮 */}
+                                <div className="sidebar-footer">
+                                    {vaultPath ? (
+                                        <button
+                                            className="sidebar-footer-btn"
+                                            onClick={() => setShowNewFolderDialog(true)}
+                                        >
+                                            <FolderPlus size={14} strokeWidth={1.5} />
+                                            <span>新建文件夹</span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            className="sidebar-footer-btn connect"
+                                            onClick={selectVault}
+                                        >
+                                            <FolderPlus size={14} strokeWidth={1.5} />
+                                            <span>新建/链接本地文件夹</span>
+                                        </button>
                                     )}
                                 </div>
                             </div>

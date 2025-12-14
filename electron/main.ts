@@ -130,9 +130,18 @@ function ensureZenNoteDir(vaultPath: string): void {
 // ============ IPC 处理器 ============
 
 function setupIpcHandlers() {
-    // 获取 Vault 路径
+    // 获取 Vault 路径（自动检测文件夹是否存在）
     ipcMain.handle('fs:getVaultPath', () => {
-        return store.get('vaultPath')
+        const vaultPath = store.get('vaultPath')
+        if (vaultPath) {
+            // 检测文件夹是否存在
+            if (!existsSync(vaultPath)) {
+                console.log('⚠️ Vault 文件夹不存在，自动清除配置:', vaultPath)
+                store.set('vaultPath', null)
+                return null
+            }
+        }
+        return vaultPath
     })
 
     // 设置 Vault 路径
