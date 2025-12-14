@@ -10,6 +10,10 @@ export default defineConfig({
         electron([
             {
                 entry: 'electron/main.ts',
+                onstart(args) {
+                    // 启动 Electron
+                    args.startup()
+                },
                 vite: {
                     build: {
                         outDir: 'dist-electron',
@@ -52,5 +56,11 @@ export default defineConfig({
     // 优化 WebLLM 的大文件加载
     optimizeDeps: {
         exclude: ['@mlc-ai/web-llm']
+    },
+    server: {
+        port: 5173,
+        strictPort: true
     }
 })
+
+

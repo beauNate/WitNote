@@ -79,17 +79,17 @@ export const App: React.FC = () => {
         [activeNoteId]
     );
 
-    // 自测：启动时发送测试消息
+    // 自测：在控制台输出引擎状态
     useEffect(() => {
         if (llm.status === 'ready') {
-            console.log('🧪 自测流程开始...');
-            console.log(`📊 当前引擎: ${llm.providerType}`);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🧪 自测流程完成！');
+            console.log(`📊 当前引擎: ${llm.providerType === 'ollama' ? 'Ollama (本地核心)' : 'WebLLM (内置核心)'}`);
             console.log(`📊 当前模型: ${llm.modelName}`);
-
-            // 自动发送测试消息
-            setTimeout(() => {
-                llm.sendMessage('你好，你在运行哪个模型？');
-            }, 500);
+            if (llm.providerType === 'ollama' && llm.ollamaModels.length > 0) {
+                console.log(`📋 可用模型列表: ${llm.ollamaModels.map(m => m.name).join(', ')}`);
+            }
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         }
     }, [llm.status]); // 只在状态变化时触发一次
 

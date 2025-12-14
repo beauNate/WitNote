@@ -6,6 +6,9 @@ app.commandLine.appendSwitch('enable-features', 'Vulkan')
 app.commandLine.appendSwitch('use-vulkan')
 app.commandLine.appendSwitch('enable-unsafe-webgpu')
 
+// 开发服务器 URL (由 vite-plugin-electron 注入)
+const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+
 let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
@@ -37,15 +40,22 @@ function createWindow() {
     })
 
     // 开发模式连接 Vite 开发服务器
-    if (process.env.VITE_DEV_SERVER_URL) {
-        mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+    if (VITE_DEV_SERVER_URL) {
+        console.log('🔗 开发模式: 连接到', VITE_DEV_SERVER_URL)
+        mainWindow.loadURL(VITE_DEV_SERVER_URL)
         mainWindow.webContents.openDevTools()
     } else {
+        console.log('📦 生产模式: 加载本地文件')
         mainWindow.loadFile(join(__dirname, '../dist/index.html'))
     }
 
     mainWindow.on('closed', () => {
         mainWindow = null
+    })
+
+    // 打开 DevTools 后打印调试信息
+    mainWindow.webContents.on('did-finish-load', () => {
+        console.log('✅ 页面加载完成')
     })
 }
 
@@ -67,3 +77,5 @@ app.on('window-all-closed', () => {
 
 // 输出调试信息
 console.log('🧘 禅意笔记本启动中...')
+console.log('📊 VITE_DEV_SERVER_URL:', VITE_DEV_SERVER_URL || '未设置 (生产模式)')
+
