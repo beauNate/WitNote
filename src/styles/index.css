@@ -245,6 +245,10 @@ select:focus {
   color: var(--text-tertiary);
 }
 
+.sidebar-spacer {
+  flex: 1;
+}
+
 .sidebar-btn {
   width: 28px;
   height: 28px;

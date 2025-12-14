@@ -92,6 +92,7 @@ const AppContent: React.FC = () => {
         fileContent,
         selectVault,
         openFile,
+        selectFolder,
         setFileContent,
         toggleFileFormat,
         createNewFile,
@@ -332,9 +333,7 @@ const AppContent: React.FC = () => {
                         <Panel defaultSize={20} minSize={15} maxSize={35} className="panel-sidebar">
                             <div className="sidebar-inner">
                                 <div className="sidebar-header">
-                                    <span className="sidebar-title">
-                                        {vaultPath ? vaultPath.split('/').pop() : '文件'}
-                                    </span>
+                                    <span className="sidebar-spacer" />
                                     <button
                                         className="sidebar-btn"
                                         onClick={() => setShowNewFolderDialog(true)}
@@ -343,13 +342,22 @@ const AppContent: React.FC = () => {
                                     </button>
                                 </div>
 
-                                <div className="sidebar-content">
+                                {/* 点击空白处返回根目录 */}
+                                <div
+                                    className="sidebar-content"
+                                    onClick={(e) => {
+                                        // 只有点击空白处时才触发
+                                        if (e.target === e.currentTarget) {
+                                            selectFolder(null)
+                                        }
+                                    }}
+                                >
                                     {fileTree.length === 0 ? (
                                         <div className="sidebar-empty">空</div>
                                     ) : (
                                         <FileTree
                                             nodes={fileTree}
-                                            activeFilePath={activeFile?.path || activeFolder?.path || null}
+                                            activeFilePath={activeFolder?.path || null}
                                             onFileSelect={openFile}
                                             onRename={(node) => {
                                                 setRenameTarget(node)
@@ -358,6 +366,9 @@ const AppContent: React.FC = () => {
                                             onDelete={handleDelete}
                                             getColor={getColor}
                                             onColorChange={setColor}
+                                            rootName={vaultPath?.split('/').pop() || '根目录'}
+                                            isRootSelected={!activeFolder && !activeFile}
+                                            onRootSelect={() => selectFolder(null)}
                                         />
                                     )}
                                 </div>

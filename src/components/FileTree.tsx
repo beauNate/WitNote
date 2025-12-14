@@ -40,6 +40,10 @@ interface FileTreeProps {
     onDelete?: (node: FileNode) => void
     getColor?: (path: string) => ColorKey
     onColorChange?: (path: string, color: ColorKey) => void
+    // 根目录相关
+    rootName?: string
+    isRootSelected?: boolean
+    onRootSelect?: () => void
 }
 
 export const FileTree: React.FC<FileTreeProps> = ({
@@ -49,7 +53,10 @@ export const FileTree: React.FC<FileTreeProps> = ({
     onRename,
     onDelete,
     getColor,
-    onColorChange
+    onColorChange,
+    rootName,
+    isRootSelected,
+    onRootSelect
 }) => {
     const [contextMenu, setContextMenu] = useState<ContextMenuState>({
         show: false,
@@ -127,6 +134,21 @@ export const FileTree: React.FC<FileTreeProps> = ({
 
     return (
         <div className="finder-tree">
+            {/* 根目录项 */}
+            {rootName && (
+                <div
+                    className={`finder-tree-item root-item ${isRootSelected ? 'active' : ''}`}
+                    onClick={() => onRootSelect?.()}
+                    style={{ paddingLeft: '12px' }}
+                >
+                    <span className="finder-icon">
+                        <Folder size={16} strokeWidth={1.5} />
+                    </span>
+                    <span className="finder-name">{rootName}</span>
+                </div>
+            )}
+
+            {/* 子文件夹列表 */}
             {folderNodes.map((node) => (
                 <FileTreeItem
                     key={node.path}
@@ -135,7 +157,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
                     onFileSelect={onFileSelect}
                     onContextMenu={openContextMenu}
                     getColor={getColor}
-                    level={0}
+                    level={rootName ? 1 : 0}
                 />
             ))}
 
