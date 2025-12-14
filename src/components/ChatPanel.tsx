@@ -98,9 +98,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
                         <Coffee size={18} strokeWidth={1.5} className="context-coffee" />
                         <span className="context-text">
                             {contextType === 'file' && activeFileName
-                                ? `我已经看到你的这篇文章`
+                                ? `我看到文章`
                                 : contextType === 'folder' && activeFolderName
-                                    ? `我已经看到这些文件夹的内容`
+                                    ? `我看到文件夹`
                                     : '选择文件或文件夹'}
                         </span>
                     </div>

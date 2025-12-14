@@ -12,6 +12,7 @@ import {
 import {
     FolderPlus,
     Plus,
+    Minus,
     PanelLeftClose,
     PanelLeftOpen,
     PanelRightClose,
@@ -29,16 +30,13 @@ import { useFileSystem, FileNode } from './hooks/useFileSystem'
 import { useLLM } from './hooks/useLLM'
 import './styles/index.css'
 
-// 颜色配置
+// 颜色配置 - 红黄绿蓝
 const COLORS: { key: ColorKey; hex: string; name: string }[] = [
     { key: 'none', hex: 'transparent', name: '无' },
     { key: 'red', hex: '#ff453a', name: '红' },
-    { key: 'orange', hex: '#ff9500', name: '橙' },
     { key: 'yellow', hex: '#ffcc00', name: '黄' },
     { key: 'green', hex: '#30d158', name: '绿' },
     { key: 'blue', hex: '#007aff', name: '蓝' },
-    { key: 'purple', hex: '#bf5af2', name: '紫' },
-    { key: 'gray', hex: '#8e8e93', name: '灰' },
 ]
 
 // 排序选项
@@ -266,12 +264,11 @@ const AppContent: React.FC = () => {
         setGalleryMenu({ show: true, x: e.clientX, y: e.clientY, node })
     }
 
-    const handleGalleryAction = (action: 'open' | 'rename' | 'delete') => {
+    const handleGalleryAction = (action: 'rename' | 'delete') => {
         const node = galleryMenu.node
         setGalleryMenu({ show: false, x: 0, y: 0, node: null })
         if (node) {
-            if (action === 'open') openFile(node)
-            else if (action === 'rename') {
+            if (action === 'rename') {
                 setRenameTarget(node)
                 setShowRenameDialog(true)
             }
@@ -281,9 +278,21 @@ const AppContent: React.FC = () => {
 
     const handleGalleryColor = (color: ColorKey) => {
         if (galleryMenu.node) {
-            setColor(galleryMenu.node.path, color)
+            const currentColor = getColor(galleryMenu.node.path)
+            // 如果已经是这个颜色，则取消标记
+            if (currentColor === color) {
+                setColor(galleryMenu.node.path, 'none')
+            } else {
+                setColor(galleryMenu.node.path, color)
+            }
         }
         setGalleryMenu({ show: false, x: 0, y: 0, node: null })
+    }
+
+    // 获取画廊节点当前颜色
+    const getGalleryCurrentColor = () => {
+        if (!galleryMenu.node) return 'none'
+        return getColor(galleryMenu.node.path)
     }
 
     // 颜色边框样式
@@ -516,22 +525,28 @@ const AppContent: React.FC = () => {
                     style={{ position: 'fixed', left: galleryMenu.x, top: galleryMenu.y }}
                     onMouseDown={e => e.stopPropagation()}
                 >
-                    <button onClick={() => handleGalleryAction('open')}>打开</button>
                     <button onClick={() => handleGalleryAction('rename')}>重命名</button>
-                    <div className="color-dots">
-                        {COLORS.map(c => (
-                            <button
-                                key={c.key}
-                                className="color-dot"
-                                style={{
-                                    background: c.key === 'none' ? '#e5e5e5' : c.hex,
-                                    border: c.key === 'none' ? '1px dashed #ccc' : 'none'
-                                }}
-                                onClick={() => handleGalleryColor(c.key)}
-                                title={c.name}
-                            />
-                        ))}
+
+                    {/* 红黄绿颜色圆圈 */}
+                    <div className="color-circles">
+                        {COLORS.filter(c => c.key !== 'none').map(c => {
+                            const isActive = getGalleryCurrentColor() === c.key
+                            return (
+                                <button
+                                    key={c.key}
+                                    className={`color-circle ${isActive ? 'active' : ''}`}
+                                    style={{ background: c.hex }}
+                                    onClick={() => handleGalleryColor(c.key)}
+                                    title={c.name}
+                                >
+                                    <span className="color-circle-icon">
+                                        {isActive ? <Minus size={10} strokeWidth={2.5} /> : <Plus size={10} strokeWidth={2.5} />}
+                                    </span>
+                                </button>
+                            )
+                        })}
                     </div>
+
                     <div className="menu-divider" />
                     <button className="danger" onClick={() => handleGalleryAction('delete')}>删除</button>
                 </div>

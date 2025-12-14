@@ -1,6 +1,6 @@
 /**
  * Finder 风格文件树
- * 内联颜色菜单 + 颜色圆点指示器
+ * 只显示文件夹 + 红黄绿颜色标记
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
@@ -9,21 +9,18 @@ import {
     ChevronDown,
     Folder,
     FolderOpen,
-    FileText,
-    FileCode
+    Plus,
+    Minus
 } from 'lucide-react'
 import { FileNode } from '../hooks/useFileSystem'
 
-// 颜色配置
+// 颜色配置 - 红黄绿蓝
 const COLORS = [
     { key: 'none', hex: 'transparent', name: '无' },
     { key: 'red', hex: '#ff453a', name: '红' },
-    { key: 'orange', hex: '#ff9500', name: '橙' },
     { key: 'yellow', hex: '#ffcc00', name: '黄' },
     { key: 'green', hex: '#30d158', name: '绿' },
     { key: 'blue', hex: '#007aff', name: '蓝' },
-    { key: 'purple', hex: '#bf5af2', name: '紫' },
-    { key: 'gray', hex: '#8e8e93', name: '灰' },
 ] as const
 
 export type ColorKey = typeof COLORS[number]['key']
@@ -61,6 +58,9 @@ export const FileTree: React.FC<FileTreeProps> = ({
         node: null
     })
 
+    // 只显示文件夹
+    const folderNodes = nodes.filter(n => n.isDirectory)
+
     // 点击外部关闭
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -97,26 +97,37 @@ export const FileTree: React.FC<FileTreeProps> = ({
         setContextMenu({ show: false, x: 0, y: 0, node: null })
     }
 
-    const handleAction = (action: 'open' | 'rename' | 'delete') => {
+    const handleAction = (action: 'rename' | 'delete') => {
         const node = contextMenu.node
         closeMenu()
         if (node) {
-            if (action === 'open') onFileSelect(node)
-            else if (action === 'rename' && onRename) onRename(node)
+            if (action === 'rename' && onRename) onRename(node)
             else if (action === 'delete' && onDelete) onDelete(node)
         }
     }
 
     const handleColorClick = (color: ColorKey) => {
         if (contextMenu.node && onColorChange) {
-            onColorChange(contextMenu.node.path, color)
+            const currentColor = getColor ? getColor(contextMenu.node.path) : 'none'
+            // 如果已经是这个颜色，则取消标记
+            if (currentColor === color) {
+                onColorChange(contextMenu.node.path, 'none')
+            } else {
+                onColorChange(contextMenu.node.path, color)
+            }
         }
         closeMenu()
     }
 
+    // 获取当前节点的颜色
+    const getCurrentColor = () => {
+        if (!contextMenu.node || !getColor) return 'none'
+        return getColor(contextMenu.node.path)
+    }
+
     return (
         <div className="finder-tree">
-            {nodes.map((node) => (
+            {folderNodes.map((node) => (
                 <FileTreeItem
                     key={node.path}
                     node={node}
@@ -128,30 +139,33 @@ export const FileTree: React.FC<FileTreeProps> = ({
                 />
             ))}
 
-            {/* 右键菜单 - 内联颜色点 */}
+            {/* 右键菜单 - 红黄绿圆圈 */}
             {contextMenu.show && contextMenu.node && (
                 <div
                     className="context-menu"
                     style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y }}
                     onMouseDown={e => e.stopPropagation()}
                 >
-                    <button onClick={() => handleAction('open')}>打开</button>
                     <button onClick={() => handleAction('rename')}>重命名</button>
 
-                    {/* 内联颜色点 */}
-                    <div className="color-dots">
-                        {COLORS.map(c => (
-                            <button
-                                key={c.key}
-                                className="color-dot"
-                                style={{
-                                    background: c.key === 'none' ? '#e5e5e5' : c.hex,
-                                    border: c.key === 'none' ? '1px dashed #ccc' : 'none'
-                                }}
-                                onClick={() => handleColorClick(c.key)}
-                                title={c.name}
-                            />
-                        ))}
+                    {/* 红黄绿颜色圆圈 */}
+                    <div className="color-circles">
+                        {COLORS.filter(c => c.key !== 'none').map(c => {
+                            const isActive = getCurrentColor() === c.key
+                            return (
+                                <button
+                                    key={c.key}
+                                    className={`color-circle ${isActive ? 'active' : ''}`}
+                                    style={{ background: c.hex }}
+                                    onClick={() => handleColorClick(c.key)}
+                                    title={c.name}
+                                >
+                                    <span className="color-circle-icon">
+                                        {isActive ? <Minus size={10} strokeWidth={2.5} /> : <Plus size={10} strokeWidth={2.5} />}
+                                    </span>
+                                </button>
+                            )
+                        })}
                     </div>
 
                     <div className="menu-divider" />
@@ -204,19 +218,13 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({
         }
     }
 
+    // 只有文件夹图标
     const getIcon = () => {
-        if (node.isDirectory) {
-            return isExpanded ? (
-                <FolderOpen size={16} strokeWidth={1.5} />
-            ) : (
-                <Folder size={16} strokeWidth={1.5} />
-            )
-        }
-        const ext = node.extension?.toLowerCase()
-        if (ext === 'md' || ext === '.md') {
-            return <FileCode size={16} strokeWidth={1.5} />
-        }
-        return <FileText size={16} strokeWidth={1.5} />
+        return isExpanded ? (
+            <FolderOpen size={16} strokeWidth={1.5} />
+        ) : (
+            <Folder size={16} strokeWidth={1.5} />
+        )
     }
 
     const fileCount = getFileCount()
@@ -259,9 +267,10 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({
                 )}
             </div>
 
+            {/* 只渲染子文件夹 */}
             {node.isDirectory && isExpanded && node.children && (
                 <div className="finder-tree-children">
-                    {node.children.map((child) => (
+                    {node.children.filter(c => c.isDirectory).map((child) => (
                         <FileTreeItem
                             key={child.path}
                             node={child}
