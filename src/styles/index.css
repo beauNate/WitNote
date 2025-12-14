@@ -823,12 +823,11 @@ select:focus {
 
 /* ============ ChatPanel ============ */
 .chat-panel-v2 {
-  width: var(--chat-width);
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg-chat);
-  border-left: 1px solid var(--border-color);
 }
 
 .chat-messages {
