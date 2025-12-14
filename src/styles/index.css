@@ -220,7 +220,7 @@ select:focus {
 
 /* 侧边栏头部 - 与折叠按钮同一高度 */
 .sidebar-header {
-  height: calc(var(--titlebar-height) + 44px);
+  height: calc(var(--titlebar-height) + 0px);
   padding: 0 12px;
   padding-top: var(--titlebar-height);
   display: flex;
@@ -262,7 +262,7 @@ select:focus {
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 8px;
+  padding: 0 8px 8px 8px;
 }
 
 .sidebar-empty {
@@ -540,9 +540,9 @@ select:focus {
   overflow: hidden;
 }
 
-/* 画廊头部 - 与标题栏同高度 */
+/* 画廊头部 - 与侧边栏头部对齐 */
 .gallery-header {
-  height: var(--titlebar-height);
+  height: calc(var(--titlebar-height) + 0px);
   padding: 0 24px;
   /* 与网格 padding 对齐 */
   display: flex;
@@ -695,7 +695,6 @@ select:focus {
   padding: 16px 24px;
   overflow-y: auto;
   align-content: start;
-  padding-top: 8px;
 }
 
 /* 正方形卡片 */
