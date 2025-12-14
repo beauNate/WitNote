@@ -102,9 +102,10 @@ export const SYSTEM_PROMPT = `你是「禅意笔记本」的 AI 助手。你运�
 你的任务是帮助用户整理笔记、总结内容、回答问题。
 请用简洁、友好的中文回答。`;
 
-// 默认 WebLLM 模型
-export const DEFAULT_WEBLLM_MODEL = 'gemma-2-2b-it-q4f32_1-MLC';
+// 默认 WebLLM 模型 (使用较小的模型以加快加载速度)
+// 可选模型列表: https://github.com/mlc-ai/web-llm#available-models
+export const DEFAULT_WEBLLM_MODEL = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
 
 // Ollama 默认配置
 export const OLLAMA_BASE_URL = 'http://localhost:11434';
-export const OLLAMA_DETECT_TIMEOUT = 2000; // 2秒超时
+export const OLLAMA_DETECT_TIMEOUT = 3000; // 3秒超时

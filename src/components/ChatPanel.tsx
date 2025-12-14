@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatMessage, LoadProgress } from '../services/types';
+import { ChatMessage } from '../services/types';
 import StatusIndicator from './StatusIndicator';
 import { UseLLMReturn } from '../hooks/useLLM';
 
@@ -22,13 +22,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
         status,
         modelName,
         loadProgress,
+        errorMessage,
         ollamaModels,
         selectedOllamaModel,
         setSelectedOllamaModel,
         messages,
         isGenerating,
         sendMessage,
-        abortGeneration
+        abortGeneration,
+        retryDetection
     } = llm;
 
     // 自动滚动到底部
@@ -91,6 +93,34 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
                 </div>
             )}
 
+            {/* 错误状态 */}
+            {status === 'error' && (
+                <div className="error-state" style={{
+                    padding: '16px',
+                    background: 'rgba(255, 59, 48, 0.1)',
+                    borderBottom: '1px solid rgba(255, 59, 48, 0.2)',
+                    textAlign: 'center'
+                }}>
+                    <div style={{ color: '#ff3b30', marginBottom: '8px', fontSize: '13px' }}>
+                        ❌ {errorMessage || 'AI 引擎初始化失败'}
+                    </div>
+                    <button
+                        onClick={retryDetection}
+                        style={{
+                            padding: '6px 16px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: '#007aff',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
+                    >
+                        重新检测
+                    </button>
+                </div>
+            )}
+
             {/* 消息区域 */}
             <div className="chat-messages">
                 {messages.length === 0 ? (
@@ -100,7 +130,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
                         <div className="empty-state-desc">
                             {status === 'ready'
                                 ? '有什么我可以帮助你的吗？'
-                                : '正在准备 AI 引擎...'}
+                                : status === 'error'
+                                    ? '请点击上方按钮重试'
+                                    : '正在准备 AI 引擎...'}
                         </div>
                     </div>
                 ) : (

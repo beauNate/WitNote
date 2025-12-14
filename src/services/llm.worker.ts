@@ -6,6 +6,20 @@
 import * as webllm from '@mlc-ai/web-llm';
 import { WorkerMessage, SYSTEM_PROMPT, DEFAULT_WEBLLM_MODEL, LLMMessage } from './types';
 
+// WebGPU 类型扩展
+declare global {
+    interface Navigator {
+        gpu?: {
+            requestAdapter(): Promise<GPUAdapter | null>;
+        };
+    }
+    interface GPUAdapter {
+        requestDevice(): Promise<GPUDevice | null>;
+        requestAdapterInfo(): Promise<{ vendor: string; architecture: string }>;
+    }
+    interface GPUDevice { }
+}
+
 let engine: webllm.MLCEngine | null = null;
 
 // 发送消息到主线程
@@ -13,16 +27,64 @@ function postMessage(message: WorkerMessage) {
     self.postMessage(message);
 }
 
+// 检测 WebGPU 支持
+async function checkWebGPU(): Promise<boolean> {
+    try {
+        if (!navigator.gpu) {
+            console.error('❌ WebGPU 不可用: navigator.gpu 未定义');
+            return false;
+        }
+
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) {
+            console.error('❌ WebGPU 不可用: 无法获取 GPU 适配器');
+            return false;
+        }
+
+        console.log('✅ WebGPU 可用');
+        try {
+            const info = await adapter.requestAdapterInfo();
+            console.log('📊 GPU 适配器:', info);
+        } catch {
+            console.log('📊 GPU 适配器信息不可用');
+        }
+        return true;
+    } catch (error) {
+        console.error('❌ WebGPU 检测失败:', error);
+        return false;
+    }
+}
+
 // 初始化引擎
 async function initEngine(modelId: string) {
     try {
+        console.log('🔄 Worker: 检测 WebGPU...');
+
+        const hasWebGPU = await checkWebGPU();
+        if (!hasWebGPU) {
+            postMessage({
+                type: 'error',
+                payload: 'WebGPU 不可用。请确保使用支持 WebGPU 的浏览器/Electron 版本。'
+            });
+            return;
+        }
+
         console.log(`🔄 Worker: 开始加载模型 ${modelId}`);
 
-        engine = new webllm.MLCEngine();
+        // 发送初始进度
+        postMessage({
+            type: 'progress',
+            payload: {
+                stage: 'init',
+                progress: 0,
+                text: '正在初始化 WebLLM 引擎...'
+            }
+        });
 
-        await engine.reload(modelId, {
-            // 进度回调
-            initProgressCallback: (progress) => {
+        // 创建引擎并设置进度回调
+        engine = new webllm.MLCEngine({
+            initProgressCallback: (progress: { text: string; progress: number }) => {
+                console.log(`📥 加载进度: ${Math.round(progress.progress * 100)}% - ${progress.text}`);
                 postMessage({
                     type: 'progress',
                     payload: {
@@ -34,13 +96,16 @@ async function initEngine(modelId: string) {
             }
         });
 
+        await engine.reload(modelId);
+
         console.log('✅ Worker: 模型加载完成');
         postMessage({ type: 'ready' });
     } catch (error) {
         console.error('❌ Worker: 模型加载失败:', error);
+        const errorMsg = error instanceof Error ? error.message : '未知错误';
         postMessage({
             type: 'error',
-            payload: error instanceof Error ? error.message : '未知错误'
+            payload: `模型加载失败: ${errorMsg}`
         });
     }
 }
@@ -125,3 +190,4 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 };
 
 console.log('🧵 WebLLM Worker 已启动');
+console.log('📊 默认模型:', DEFAULT_WEBLLM_MODEL);

@@ -22,6 +22,7 @@ export interface UseLLMReturn {
     status: LLMStatus;
     modelName: string;
     loadProgress: LoadProgress | null;
+    errorMessage: string | null;
 
     // Ollama 相关
     ollamaModels: OllamaModel[];
@@ -50,6 +51,7 @@ export function useLLM(): UseLLMReturn {
     const [status, setStatus] = useState<LLMStatus>('detecting');
     const [modelName, setModelName] = useState<string>('');
     const [loadProgress, setLoadProgress] = useState<LoadProgress | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     // Ollama 状态
     const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
@@ -70,6 +72,7 @@ export function useLLM(): UseLLMReturn {
         console.log('🔍 开始检测 LLM 引擎...');
         setStatus('detecting');
         setLoadProgress(null);
+        setErrorMessage(null);
 
         // Step 1: 尝试探测 Ollama
         const models = await OllamaService.detect();
@@ -129,6 +132,8 @@ export function useLLM(): UseLLMReturn {
             console.log('🧪 WebLLM 自测通过');
         } catch (error) {
             console.error('❌ WebLLM 初始化失败:', error);
+            const errMsg = error instanceof Error ? error.message : '未知错误';
+            setErrorMessage(`WebLLM 初始化失败: ${errMsg}`);
             setStatus('error');
         }
     };
@@ -277,6 +282,7 @@ export function useLLM(): UseLLMReturn {
         status,
         modelName,
         loadProgress,
+        errorMessage,
         ollamaModels,
         selectedOllamaModel,
         setSelectedOllamaModel: handleSetSelectedOllamaModel,
