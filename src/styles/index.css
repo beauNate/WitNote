@@ -183,36 +183,27 @@ select:focus {
   background: var(--accent-color);
 }
 
-/* 折叠按钮 - 与侧边栏头部对齐 */
-.panel-toggles {
-  position: absolute;
-  top: var(--titlebar-height);
-  left: 12px;
+/* 布局切换按钮 - 右上角与标题栏齐平 */
+.layout-toggle-btn {
+  position: fixed;
+  top: calc((var(--titlebar-height) - 28px) / 2);
   right: 12px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  z-index: 100;
-  pointer-events: none;
-}
-
-.panel-toggle {
   width: 28px;
   height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-tertiary);
-  background: var(--bg-main);
-  border: 1px solid var(--border-color);
+  background: transparent;
+  border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  pointer-events: auto;
+  z-index: 10000;
+  -webkit-app-region: no-drag;
   transition: all var(--transition-fast);
 }
 
-.panel-toggle:hover {
+.layout-toggle-btn:hover {
   color: var(--text-primary);
   background: var(--bg-hover);
 }

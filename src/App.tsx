@@ -13,10 +13,7 @@ import {
     FolderPlus,
     Plus,
     Minus,
-    PanelLeftClose,
-    PanelLeftOpen,
-    PanelRightClose,
-    PanelRightOpen,
+    Columns,
     ArrowUpDown,
     Filter
 } from 'lucide-react'
@@ -54,9 +51,17 @@ const AppContent: React.FC = () => {
     const llm = useLLM()
     const { showToast } = useToast()
 
-    // 面板状态
-    const [leftCollapsed, setLeftCollapsed] = useState(false)
-    const [rightCollapsed, setRightCollapsed] = useState(false)
+    // 专注模式：true = 两侧关闭，false = 两侧打开
+    const [focusMode, setFocusMode] = useState(false)
+
+    // 切换专注模式
+    const toggleFocusMode = () => {
+        setFocusMode(prev => !prev)
+    }
+
+    // 派生状态
+    const leftCollapsed = focusMode
+    const rightCollapsed = focusMode
 
     // 对话框状态
     const [showNewFolderDialog, setShowNewFolderDialog] = useState(false)
@@ -308,6 +313,15 @@ const AppContent: React.FC = () => {
         <div className="app-root">
             <div className="titlebar-drag-region" />
 
+            {/* 专注模式切换按钮 - 右上角 */}
+            <button
+                className="layout-toggle-btn"
+                onClick={toggleFocusMode}
+                title={focusMode ? '恢复边栏' : '专注模式'}
+            >
+                <Columns size={16} strokeWidth={1.5} />
+            </button>
+
             {/* 对话框 */}
             <InputDialog
                 isOpen={showNewFolderDialog}
@@ -381,24 +395,6 @@ const AppContent: React.FC = () => {
                 {/* 中间内容区 */}
                 <Panel defaultSize={leftCollapsed && rightCollapsed ? 100 : 50} minSize={30} className="panel-main">
                     <div className="main-inner">
-                        {/* 折叠按钮 */}
-                        <div className="panel-toggles">
-                            <button
-                                className="panel-toggle left"
-                                onClick={() => setLeftCollapsed(!leftCollapsed)}
-                                title={leftCollapsed ? '展开左侧' : '折叠左侧'}
-                            >
-                                {leftCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-                            </button>
-                            <button
-                                className="panel-toggle right"
-                                onClick={() => setRightCollapsed(!rightCollapsed)}
-                                title={rightCollapsed ? '展开右侧' : '折叠右侧'}
-                            >
-                                {rightCollapsed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
-                            </button>
-                        </div>
-
                         {activeFile ? (
                             <Editor
                                 content={fileContent}
