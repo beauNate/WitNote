@@ -1,6 +1,6 @@
 /**
  * 编辑器组件
- * 中文占位符 + 右上角新建按钮
+ * 修复：标题默认空白+灰色占位符、标题自动换行、自适应高度
  */
 
 import React, { useRef, useEffect, useState } from 'react'
@@ -26,30 +26,49 @@ export const Editor: React.FC<EditorProps> = ({
     onNewFile
 }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
-    const titleRef = useRef<HTMLInputElement>(null)
+    const titleRef = useRef<HTMLTextAreaElement>(null)
     const [title, setTitle] = useState('')
 
-    useEffect(() => {
-        const baseName = fileName.replace(/\.[^/.]+$/, '')
-        setTitle(baseName)
-    }, [fileName])
+    // 判断是否为新建的未命名文件
+    const isUntitled = fileName.startsWith('Untitled_')
 
     useEffect(() => {
-        const textarea = textareaRef.current
-        if (textarea) {
-            textarea.style.height = 'auto'
-            textarea.style.height = `${textarea.scrollHeight}px`
+        // 如果是未命名文件，显示空白让用户输入
+        if (isUntitled) {
+            setTitle('')
+        } else {
+            const baseName = fileName.replace(/\.[^/.]+$/, '')
+            setTitle(baseName)
+        }
+    }, [fileName, isUntitled])
+
+    // 自动调整文本域高度
+    useEffect(() => {
+        if (titleRef.current) {
+            titleRef.current.style.height = 'auto'
+            titleRef.current.style.height = `${titleRef.current.scrollHeight}px`
+        }
+    }, [title])
+
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto'
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
         }
     }, [content])
 
-    const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setTitle(e.target.value)
+        // 自动调整高度
+        e.target.style.height = 'auto'
+        e.target.style.height = `${e.target.scrollHeight}px`
     }
 
     const handleTitleBlur = () => {
-        if (onTitleChange && title.trim()) {
+        if (onTitleChange) {
             const ext = fileExtension.startsWith('.') ? fileExtension.slice(1) : fileExtension
-            const newFileName = `${title.trim()}.${ext}`
+            const newTitle = title.trim() || 'Untitled'
+            const newFileName = `${newTitle}.${ext}`
             if (newFileName !== fileName) {
                 onTitleChange(newFileName)
             }
@@ -57,7 +76,8 @@ export const Editor: React.FC<EditorProps> = ({
     }
 
     const handleTitleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
+        // Shift+Enter 换行，Enter 保存并跳到正文
+        if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
             titleRef.current?.blur()
             textareaRef.current?.focus()
@@ -67,58 +87,62 @@ export const Editor: React.FC<EditorProps> = ({
     const isMarkdown = fileExtension === 'md' || fileExtension === '.md'
 
     return (
-        <div className="medium-editor">
-            {/* 右上角：格式 + 新建 */}
-            <div className="editor-top-bar">
-                <div className="editor-spacer" />
+        <div className="editor-container">
+            {/* 顶部工具栏 - 水平对齐 */}
+            <div className="editor-toolbar">
+                <div className="toolbar-group">
+                    <div className="format-badge">
+                        <span className="format-icon">
+                            {isMarkdown ? (
+                                <FileCode size={14} strokeWidth={1.5} />
+                            ) : (
+                                <FileText size={14} strokeWidth={1.5} />
+                            )}
+                        </span>
+                        <button
+                            className="format-toggle"
+                            onClick={onFormatToggle}
+                            title="切换格式"
+                        >
+                            {isMarkdown ? 'MD' : 'TXT'}
+                        </button>
+                    </div>
 
-                <div className="editor-format-badge">
-                    <span className="format-icon">
-                        {isMarkdown ? (
-                            <FileCode size={14} strokeWidth={1.5} />
-                        ) : (
-                            <FileText size={14} strokeWidth={1.5} />
-                        )}
-                    </span>
-                    <button
-                        className="format-toggle"
-                        onClick={onFormatToggle}
-                        title="切换格式"
-                    >
-                        {isMarkdown ? 'MD' : 'TXT'}
-                    </button>
+                    {onNewFile && (
+                        <button className="toolbar-btn" onClick={onNewFile} title="新建">
+                            <Plus size={16} strokeWidth={1.5} />
+                        </button>
+                    )}
                 </div>
-
-                {/* 新建按钮 */}
-                {onNewFile && (
-                    <button className="editor-new-btn" onClick={onNewFile} title="新建日记">
-                        <Plus size={18} strokeWidth={1.5} />
-                    </button>
-                )}
             </div>
 
-            {/* 标题 - 中文占位符 */}
-            <input
-                ref={titleRef}
-                type="text"
-                className="editor-title"
-                value={title}
-                onChange={handleTitleChange}
-                onBlur={handleTitleBlur}
-                onKeyDown={handleTitleKeyDown}
-                placeholder="标题"
-                spellCheck={false}
-            />
+            {/* 编辑区域 - 可滚动 */}
+            <div className="editor-scroll">
+                <div className="editor-content">
+                    {/* 标题 - 自动换行 */}
+                    <textarea
+                        ref={titleRef}
+                        className="editor-title"
+                        value={title}
+                        onChange={handleTitleChange}
+                        onBlur={handleTitleBlur}
+                        onKeyDown={handleTitleKeyDown}
+                        placeholder="标题"
+                        rows={1}
+                        spellCheck={false}
+                    />
 
-            {/* 正文 */}
-            <textarea
-                ref={textareaRef}
-                className="editor-body"
-                value={content}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder="写下你的想法..."
-                spellCheck={false}
-            />
+                    {/* 正文 */}
+                    <textarea
+                        ref={textareaRef}
+                        className="editor-body"
+                        value={content}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder="写下你的想法..."
+                        spellCheck={false}
+                    />
+                </div>
+            </div>
         </div>
     )
 }
