@@ -66,6 +66,7 @@ const AppContent: React.FC = () => {
 
     // 对话框状态
     const [showNewFolderDialog, setShowNewFolderDialog] = useState(false)
+    const [newFolderTargetDir, setNewFolderTargetDir] = useState('')  // 新建文件夹的目标目录
     const [showRenameDialog, setShowRenameDialog] = useState(false)
     const [renameTarget, setRenameTarget] = useState<FileNode | null>(null)
 
@@ -86,6 +87,13 @@ const AppContent: React.FC = () => {
         y: number
         node: FileNode | null
     }>({ show: false, x: 0, y: 0, node: null })
+
+    // 侧边栏右键菜单（用于空白区域和根目录）
+    const [sidebarMenu, setSidebarMenu] = useState<{
+        show: boolean
+        x: number
+        y: number
+    }>({ show: false, x: 0, y: 0 })
 
     const {
         vaultPath,
@@ -165,6 +173,10 @@ const AppContent: React.FC = () => {
             if (!target.closest('.gallery-menu')) {
                 setGalleryMenu(prev => ({ ...prev, show: false }))
             }
+            // 关闭侧边栏右键菜单
+            if (!target.closest('.sidebar-menu')) {
+                setSidebarMenu(prev => ({ ...prev, show: false }))
+            }
         }
         document.addEventListener('mousedown', close)
         return () => document.removeEventListener('mousedown', close)
@@ -232,8 +244,9 @@ const AppContent: React.FC = () => {
 
     // Handlers
     const handleCreateFolder = async (name: string) => {
-        await createNewFolder(name)
+        await createNewFolder(name, newFolderTargetDir || undefined)
         setShowNewFolderDialog(false)
+        setNewFolderTargetDir('')  // 重置目标目录
     }
 
     const handleQuickCreate = async () => {
@@ -356,6 +369,13 @@ const AppContent: React.FC = () => {
                                             selectFolder(null)
                                         }
                                     }}
+                                    onContextMenu={(e) => {
+                                        // 只在空白区域触发（非子元素）
+                                        if (e.target === e.currentTarget) {
+                                            e.preventDefault()
+                                            setSidebarMenu({ show: true, x: e.clientX, y: e.clientY })
+                                        }
+                                    }}
                                 >
                                     {vaultPath ? (
                                         <>
@@ -363,6 +383,11 @@ const AppContent: React.FC = () => {
                                             <div
                                                 className={`finder-tree-item root-item ${!activeFolder && !activeFile ? 'active' : ''}`}
                                                 onClick={() => selectFolder(null)}
+                                                onContextMenu={(e) => {
+                                                    e.preventDefault()
+                                                    e.stopPropagation()
+                                                    setSidebarMenu({ show: true, x: e.clientX, y: e.clientY })
+                                                }}
                                                 style={{ paddingLeft: '12px' }}
                                             >
                                                 <span className="finder-icon">
@@ -382,6 +407,10 @@ const AppContent: React.FC = () => {
                                                         setShowRenameDialog(true)
                                                     }}
                                                     onDelete={handleDelete}
+                                                    onCreateFolder={(inDir) => {
+                                                        setNewFolderTargetDir(inDir || '')
+                                                        setShowNewFolderDialog(true)
+                                                    }}
                                                     getColor={getColor}
                                                     onColorChange={setColor}
                                                     isRootSelected={false}
@@ -400,6 +429,20 @@ const AppContent: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* 侧边栏右键菜单 */}
+                                {sidebarMenu.show && (
+                                    <div
+                                        className="sidebar-menu context-menu"
+                                        style={{ position: 'fixed', left: sidebarMenu.x, top: sidebarMenu.y }}
+                                        onMouseDown={e => e.stopPropagation()}
+                                    >
+                                        <button onClick={() => {
+                                            setShowNewFolderDialog(true)
+                                            setSidebarMenu({ show: false, x: 0, y: 0 })
+                                        }}>新建文件夹</button>
+                                    </div>
+                                )}
 
                                 {/* 底部操作按钮 */}
                                 <div className="sidebar-footer">

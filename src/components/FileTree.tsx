@@ -38,6 +38,7 @@ interface FileTreeProps {
     onFileSelect: (node: FileNode) => void
     onRename?: (node: FileNode) => void
     onDelete?: (node: FileNode) => void
+    onCreateFolder?: (inDirectory?: string) => void
     getColor?: (path: string) => ColorKey
     onColorChange?: (path: string, color: ColorKey) => void
     // 根目录相关
@@ -52,6 +53,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
     onFileSelect,
     onRename,
     onDelete,
+    onCreateFolder,
     getColor,
     onColorChange,
     rootName,
@@ -168,6 +170,13 @@ export const FileTree: React.FC<FileTreeProps> = ({
                     style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y }}
                     onMouseDown={e => e.stopPropagation()}
                 >
+                    {/* 新建文件夹 - 在当前文件夹内创建 */}
+                    {onCreateFolder && (
+                        <button onClick={() => {
+                            onCreateFolder(contextMenu.node?.path)
+                            closeMenu()
+                        }}>新建文件夹</button>
+                    )}
                     <button onClick={() => handleAction('rename')}>重命名</button>
 
                     {/* 红黄绿颜色圆圈 */}
