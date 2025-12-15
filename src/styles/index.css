@@ -1261,6 +1261,8 @@ select:focus {
   overflow: hidden;
   /* 防止溢出撑开 */
   min-height: 0;
+  /* 关键修改：父容器添加顶部内边距，占据标题栏空间，内容在下方滚动 */
+  padding-top: var(--titlebar-height);
 }
 
 .chat-messages {
@@ -1269,8 +1271,7 @@ select:focus {
   /* 关键：允许 flex 子项收缩 */
   overflow-y: auto;
   padding: 16px;
-  /* 需要避让顶部的红绿灯区域 */
-  padding-top: calc(16px + var(--titlebar-height));
+  /* 移除之前的 padding-top */
 }
 
 .chat-empty {
