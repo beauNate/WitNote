@@ -503,8 +503,13 @@ ${fileList}${hasMore ? '\n... (更多文章)' : ''}
     const searchFiles = useCallback((userMessage: string): string | null => {
         if (filePreviews.size === 0) return null;
 
-        // 提取关键词（去掉常见无意义词）
-        const stopWords = ['有没有', '有什么', '关于', '的', '吗', '呢', '啊', '文章', '文件', '笔记', '是'];
+        // 提取关键词（去掉常见无意义词，支持口语化搜索）
+        const stopWords = [
+            '有没有', '有什么', '有啥', '关于', '的', '吗', '呢', '啊', '了',
+            '文章', '文件', '笔记', '是', '找', '搜索', '搜', '查', '看看',
+            '帮我', '帮忙', '给我', '我要', '我想', '能不能', '可以', '请',
+            '找找', '找一下', '查一下', '看一下', '在哪', '哪里', '什么'
+        ];
         let query = userMessage;
         stopWords.forEach(word => {
             query = query.replace(new RegExp(word, 'g'), '');
@@ -514,12 +519,15 @@ ${fileList}${hasMore ? '\n... (更多文章)' : ''}
         if (!query || query.length < 1) return null;
 
         // 在文件名和摘要中搜索
-        const matches: Array<{ name: string, preview: string }> = [];
+        const matches: Array<{ name: string, preview: string, location: string }> = [];
+
+        // 获取当前位置描述
+        const currentLocation = activeFolderName ? `文件夹「${activeFolderName}」` : '根目录';
 
         filePreviews.forEach((preview, name) => {
             // 文件名或摘要包含关键词
             if (name.includes(query) || preview.includes(query)) {
-                matches.push({ name, preview });
+                matches.push({ name, preview, location: currentLocation });
             }
         });
 
@@ -527,19 +535,19 @@ ${fileList}${hasMore ? '\n... (更多文章)' : ''}
         activeFolderFiles.forEach(name => {
             if (name.includes(query) && !matches.find(m => m.name === name)) {
                 const preview = filePreviews.get(name) || '';
-                matches.push({ name, preview });
+                matches.push({ name, preview, location: currentLocation });
             }
         });
 
         if (matches.length === 0) return null;
 
-        // 构建搜索结果
+        // 构建搜索结果（含位置）
         const resultList = matches.slice(0, 5).map((m, i) =>
-            `${i + 1}. ${m.name}${m.preview ? `：${m.preview}` : ''}`
+            `${i + 1}. ${m.name}（位置：${m.location}）${m.preview ? `\n   摘要：${m.preview}` : ''}`
         ).join('\n');
 
-        return `【搜索结果】关键词"${query}"匹配到 ${matches.length} 个文件：\n${resultList}`;
-    }, [filePreviews, activeFolderFiles]);
+        return `【搜索结果】"${query}"匹配到 ${matches.length} 个文件：\n${resultList}`;
+    }, [filePreviews, activeFolderFiles, activeFolderName]);
 
     /**
      * 发送消息
