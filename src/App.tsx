@@ -433,8 +433,20 @@ const AppContent: React.FC = () => {
     const getCardStyle = (path: string) => {
         const color = getColor(path)
         const c = COLORS.find(x => x.key === color)
-        if (!c || color === 'none') return { border: 'rgba(0,0,0,0.08)', bg: 'transparent' }
-        return { border: c.hex, bg: `${c.hex}10` }
+        if (!c || color === 'none') {
+            // 默认蓝色投影
+            return {
+                border: 'rgba(0,0,0,0.08)',
+                bg: 'transparent',
+                shadow: 'rgba(59, 130, 246, 0.25)'
+            }
+        }
+        // 根据标注颜色设置投影颜色
+        return {
+            border: c.hex,
+            bg: `${c.hex}10`,
+            shadow: `${c.hex}40`
+        }
     }
 
     return (
@@ -715,20 +727,26 @@ const AppContent: React.FC = () => {
                                                         onContextMenu={(e) => handleCardContextMenu(e, file)}
                                                         style={{
                                                             borderColor: style.border,
-                                                            background: style.bg
-                                                        }}
+                                                            background: style.bg,
+                                                            '--card-shadow-color': style.shadow
+                                                        } as React.CSSProperties}
                                                     >
-                                                        <div className="file-card-name">
+                                                        <div className="card-title">
                                                             {file.name.replace(/\.[^/.]+$/, '')}
                                                         </div>
-                                                        <div className="file-card-preview">
+                                                        <div className="card-summary">
                                                             {preview || '...'}
                                                         </div>
-                                                        <div className="file-card-time">
-                                                            {file.modifiedAt ? (() => {
-                                                                const d = new Date(file.modifiedAt)
-                                                                return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
-                                                            })() : '--'}
+                                                        <div className="card-date">
+                                                            <span>
+                                                                {file.modifiedAt ? (() => {
+                                                                    const d = new Date(file.modifiedAt)
+                                                                    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+                                                                })() : '--'}
+                                                            </span>
+                                                            <span className={`card-type ${file.extension?.toLowerCase() || 'txt'}`}>
+                                                                {file.extension?.toUpperCase() || 'TXT'}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 )
