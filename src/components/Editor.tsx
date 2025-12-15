@@ -18,6 +18,8 @@ interface EditorProps {
     onTitleChange?: (newName: string) => void
     onFormatToggle?: () => void
     focusMode?: boolean
+    createdAt?: number
+    modifiedAt?: number
 }
 
 // 配置 marked 使用 GitHub 风格
@@ -78,7 +80,9 @@ export const Editor: React.FC<EditorProps> = ({
     fileExtension,
     onTitleChange,
     onFormatToggle,
-    focusMode = false
+    focusMode = false,
+    createdAt,
+    modifiedAt
 }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const titleRef = useRef<HTMLTextAreaElement>(null)
@@ -88,6 +92,14 @@ export const Editor: React.FC<EditorProps> = ({
 
     // 判断是否为新建的未命名文件
     const isUntitled = fileName.startsWith('Untitled_')
+
+    // 字数统计
+    const wordCount = useMemo(() => {
+        // 中文字符数 + 英文单词数
+        const chineseChars = (content.match(/[\u4e00-\u9fa5]/g) || []).length
+        const englishWords = (content.match(/[a-zA-Z]+/g) || []).length
+        return chineseChars + englishWords
+    }, [content])
     const isMarkdown = fileExtension === 'md' || fileExtension === '.md'
 
     // 预览 HTML
@@ -193,7 +205,36 @@ export const Editor: React.FC<EditorProps> = ({
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
             titleRef.current?.blur()
-            textareaRef.current?.focus()
+
+            // 如果正文为空，自动添加两个全角空格作为首行缩进
+            const indent = '　　'  // 两个全角空格（每个相当于一个汉字宽度）
+            if (!content.trim() && textareaRef.current) {
+                onChange(indent)
+                // 将光标移动到末尾
+                setTimeout(() => {
+                    if (textareaRef.current) {
+                        textareaRef.current.focus()
+                        textareaRef.current.selectionStart = indent.length
+                        textareaRef.current.selectionEnd = indent.length
+                    }
+                }, 0)
+            } else {
+                textareaRef.current?.focus()
+            }
+        }
+    }
+
+    // 点击正文区域时，如果为空则自动添加首行缩进
+    const handleBodyFocus = () => {
+        const indent = '　　'  // 两个全角空格
+        if (!content.trim() && textareaRef.current) {
+            onChange(indent)
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.selectionStart = indent.length
+                    textareaRef.current.selectionEnd = indent.length
+                }
+            }, 0)
         }
     }
 
@@ -241,7 +282,7 @@ export const Editor: React.FC<EditorProps> = ({
             </div>
 
             {/* 编辑区域 - 可滚动 */}
-            <div className="editor-scroll" ref={scrollRef}>
+            <div className={`editor-scroll ${focusMode ? 'focus-mode-content' : ''}`} ref={scrollRef}>
                 <div className="editor-content">
                     {/* 标题 - 自动换行 */}
                     <textarea
@@ -257,12 +298,20 @@ export const Editor: React.FC<EditorProps> = ({
                         readOnly={showPreview}
                     />
 
+                    {/* 标题与正文分隔线 - 三个圆点装饰 */}
+                    <div className="editor-divider">
+                        <span className="divider-dot"></span>
+                        <span className="divider-dot"></span>
+                        <span className="divider-dot"></span>
+                    </div>
+
                     {/* 正文编辑器 - 隐藏但不销毁 */}
                     <textarea
                         ref={textareaRef}
                         className="editor-body"
                         value={content}
                         onChange={(e) => onChange(e.target.value)}
+                        onFocus={handleBodyFocus}
                         onKeyDown={(e) => {
                             const textarea = textareaRef.current
                             if (!textarea) return
@@ -320,6 +369,33 @@ export const Editor: React.FC<EditorProps> = ({
                         dangerouslySetInnerHTML={{ __html: previewHtml }}
                         style={{ display: showPreview ? 'block' : 'none' }}
                     />
+
+                    {/* 底部分隔线 */}
+                    <div className="editor-divider editor-divider-bottom">
+                        <span className="divider-dot"></span>
+                        <span className="divider-dot"></span>
+                        <span className="divider-dot"></span>
+                    </div>
+
+                    {/* 文章统计信息 */}
+                    <div className="editor-stats">
+                        <span className="stat-item">{wordCount} 字</span>
+                        {createdAt && (
+                            <span className="stat-item">
+                                创建: {new Date(createdAt).toLocaleDateString('zh-CN')}
+                            </span>
+                        )}
+                        {modifiedAt && (
+                            <span className="stat-item">
+                                修改: {new Date(modifiedAt).toLocaleString('zh-CN', {
+                                    month: 'numeric',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

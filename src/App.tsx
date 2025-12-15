@@ -661,6 +661,8 @@ const AppContent: React.FC = () => {
                                 onTitleChange={handleTitleChange}
                                 onFormatToggle={convertFileFormat}
                                 focusMode={focusMode}
+                                createdAt={activeFile.createdAt}
+                                modifiedAt={activeFile.modifiedAt}
                             />
                         ) : (
                             /* 画廊视图 */

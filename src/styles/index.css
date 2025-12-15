@@ -1051,6 +1051,13 @@ select:focus {
   box-sizing: border-box;
 }
 
+/* 专注模式下增加左右留白 */
+.focus-mode~.editor-scroll,
+.editor-scroll.focus-mode-content {
+  padding-left: 15%;
+  padding-right: 15%;
+}
+
 .editor-content {
   width: 100% !important;
   max-width: 100% !important;
@@ -1106,6 +1113,51 @@ select:focus {
 
 .editor-title::placeholder {
   color: var(--text-muted);
+}
+
+/* 分隔线 - 带三个圆点装饰 */
+.editor-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 0 16px;
+  position: relative;
+  margin-top: -12px;
+}
+
+.editor-divider::before,
+.editor-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.divider-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+/* 底部分隔线 - 更多上边距 */
+.editor-divider-bottom {
+  margin-top: 40px;
+}
+
+/* 文章统计信息 */
+.editor-stats {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 12px 0 24px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stat-item {
+  white-space: nowrap;
 }
 
 .editor-body {
