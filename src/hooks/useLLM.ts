@@ -66,6 +66,7 @@ export interface UseLLMReturn {
     setMessages: (messages: ChatMessage[]) => void;
     retryDetection: () => void;
     loadChatHistory: (filePath: string) => Promise<void>;
+    unloadModel: () => void;  // 卸载模型释放内存
 
     // 事件
     onEngineChange: (callback: (event: EngineChangeEvent) => void) => void;
@@ -740,6 +741,35 @@ ${fileList}${hasMore ? '\n... (更多文章)' : ''}
         }
     }, []);
 
+    /**
+     * 卸载模型释放内存（专注模式使用）
+     */
+    const unloadModel = useCallback(() => {
+        console.log('📤 卸载语言模型释放内存...');
+
+        // 停止心跳
+        if (heartbeatRef.current) {
+            clearInterval(heartbeatRef.current);
+            heartbeatRef.current = null;
+        }
+
+        // 销毁 WebLLM 服务
+        if (webllmServiceRef.current) {
+            webllmServiceRef.current.destroy();
+            webllmServiceRef.current = null;
+        }
+
+        // 清空 Ollama 服务引用
+        ollamaServiceRef.current = null;
+
+        // 重置状态
+        setStatus('detecting');
+        setModelName('');
+        setProviderType('webllm');
+
+        console.log('✅ 语言模型已卸载');
+    }, []);
+
     // 启动时检测
     useEffect(() => {
         detectAndInitialize();
@@ -779,6 +809,7 @@ ${fileList}${hasMore ? '\n... (更多文章)' : ''}
         setMessages,
         retryDetection,
         loadChatHistory,
+        unloadModel,
         onEngineChange
     };
 }

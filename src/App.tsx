@@ -63,6 +63,17 @@ const AppContent: React.FC = () => {
         setFocusMode(prev => !prev)
     }
 
+    // 专注模式变化时管理语言模型
+    useEffect(() => {
+        if (focusMode) {
+            // 进入专注模式：卸载模型释放内存
+            llm.unloadModel()
+        } else {
+            // 退出专注模式：重新检测并加载模型
+            llm.retryDetection()
+        }
+    }, [focusMode])
+
     // 派生状态
     const leftCollapsed = focusMode
     const rightCollapsed = focusMode

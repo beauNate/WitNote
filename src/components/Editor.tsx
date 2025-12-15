@@ -95,24 +95,27 @@ export const Editor: React.FC<EditorProps> = ({
         <div className="editor-container">
             {/* 顶部工具栏 - 水平对齐 */}
             <div className={`editor-toolbar ${focusMode ? 'focus-mode' : ''}`}>
-                <div className="toolbar-group">
-                    <button
-                        className="format-badge"
-                        onClick={onFormatToggle}
-                        title="切换格式"
-                    >
-                        <span className="format-icon">
-                            {isMarkdown ? (
-                                <FileCode size={14} strokeWidth={1.5} />
-                            ) : (
-                                <FileText size={14} strokeWidth={1.5} />
-                            )}
-                        </span>
-                        <span className="format-label">
-                            {isMarkdown ? 'MD' : 'TXT'}
-                        </span>
-                    </button>
-                </div>
+                {/* 专注模式下隐藏格式按钮 */}
+                {!focusMode && (
+                    <div className="toolbar-group">
+                        <button
+                            className="format-badge"
+                            onClick={onFormatToggle}
+                            title="切换格式"
+                        >
+                            <span className="format-icon">
+                                {isMarkdown ? (
+                                    <FileCode size={14} strokeWidth={1.5} />
+                                ) : (
+                                    <FileText size={14} strokeWidth={1.5} />
+                                )}
+                            </span>
+                            <span className="format-label">
+                                {isMarkdown ? 'MD' : 'TXT'}
+                            </span>
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* 编辑区域 - 可滚动 */}
