@@ -98,11 +98,10 @@ export interface WorkerMessage {
 }
 
 // 系统提示词 - 精简版（用于 WebLLM 微型模型）
-export const SYSTEM_PROMPT_LITE = `你是写作助手。
-规则：
-1. 每个字只说一次，禁止重复
-2. 回答简短直接
-3. 用中文回答`;
+export const SYSTEM_PROMPT_LITE = `你是笔记助手。
+你能看到用户笔记库的文件列表。
+回答问题时，要引用具体的文件名。
+例如：用户问"有什么文件"，你要列出看到的文件名。`;
 
 // 系统提示词 - 完整版（用于 Ollama 大模型）
 export const SYSTEM_PROMPT_FULL = `你是「禅意笔记本」的写作助手，运行在用户本地设备上。

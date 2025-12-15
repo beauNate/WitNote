@@ -322,6 +322,70 @@ export function useLLM(): UseLLMReturn {
     }, [providerType]);
 
     /**
+     * 构建上下文信息（不包含系统提示词）
+     */
+    const buildContextInfo = useCallback((): string | null => {
+        const isLiteMode = providerType === 'webllm';
+
+        // 文件上下文
+        if (activeFileContent && activeFileName) {
+            const truncatedContent = activeFileContent.slice(0, MAX_CONTEXT_LENGTH);
+            const isTruncated = activeFileContent.length > MAX_CONTEXT_LENGTH;
+
+            if (isLiteMode) {
+                return `文章「${activeFileName}」:
+"""
+${truncatedContent}${isTruncated ? '\n...' : ''}
+"""`;
+            } else {
+                return `【当前状态】用户正在编辑文章「${activeFileName}」
+【你的角色】专注于这篇文章的写作助手
+
+文章内容:
+"""
+${truncatedContent}${isTruncated ? '\n... (内容已截断)' : ''}
+"""`;
+            }
+        }
+
+        // 子文件夹上下文
+        if (activeFolderName && activeFolderFiles.length > 0) {
+            const fileList = activeFolderFiles.slice(0, isLiteMode ? 10 : 20).map(f => `- ${f}`).join('\n');
+            const hasMore = activeFolderFiles.length > (isLiteMode ? 10 : 20);
+
+            if (isLiteMode) {
+                return `文件夹「${activeFolderName}」包含 ${activeFolderFiles.length} 个文件:
+${fileList}${hasMore ? '\n...' : ''}`;
+            } else {
+                return `【当前状态】用户正在浏览文件夹「${activeFolderName}」
+【你的角色】这个主题目录的导航助手
+
+目录包含 ${activeFolderFiles.length} 个文件:
+${fileList}${hasMore ? '\n... (更多文件)' : ''}`;
+            }
+        }
+
+        // 根目录上下文
+        if (activeFolderFiles.length > 0) {
+            const fileList = activeFolderFiles.slice(0, isLiteMode ? 15 : 30).map(f => `- ${f}`).join('\n');
+            const hasMore = activeFolderFiles.length > (isLiteMode ? 15 : 30);
+
+            if (isLiteMode) {
+                return `笔记库共 ${activeFolderFiles.length} 篇文章:
+${fileList}${hasMore ? '\n...' : ''}`;
+            } else {
+                return `【当前状态】用户正在查看全部笔记（根目录）
+【你的角色】全局写作顾问
+
+笔记库共有 ${activeFolderFiles.length} 篇文章:
+${fileList}${hasMore ? '\n... (更多文章)' : ''}`;
+            }
+        }
+
+        return null;
+    }, [activeFileContent, activeFileName, activeFolderName, activeFolderFiles, providerType]);
+
+    /**
      * 构建上下文增强的系统提示词
      */
     const buildContextPrompt = useCallback((userInput: string): string => {
@@ -449,15 +513,23 @@ ${fileList}${hasMore ? '\n... (更多文章)' : ''}
         setMessages(newMessages);
         setIsGenerating(true);
 
-        // 构建历史消息（带上下文）
-        const historyMessages: LLMMessage[] = messages.map(m => ({
-            role: m.role,
-            content: m.content
-        }));
+        // 构建发送给 LLM 的消息数组
+        const llmMessages: LLMMessage[] = [];
 
-        // 为用户消息添加上下文
-        const contextEnhancedInput = buildContextPrompt(content.trim());
-        historyMessages.push({ role: 'user', content: contextEnhancedInput });
+        // 1. 添加系统提示词 + 上下文信息（合并为一条 system 消息）
+        const contextInfo = buildContextInfo();
+        const systemContent = contextInfo
+            ? `${getSystemPrompt()}\n\n${contextInfo}`
+            : getSystemPrompt();
+        llmMessages.push({ role: 'system', content: systemContent });
+
+        // 2. 添加历史消息
+        messages.forEach(m => {
+            llmMessages.push({ role: m.role, content: m.content });
+        });
+
+        // 3. 添加当前用户消息
+        llmMessages.push({ role: 'user', content: content.trim() });
 
         // 流式回调
         const onToken = (token: string) => {
@@ -512,16 +584,16 @@ ${fileList}${hasMore ? '\n... (更多文章)' : ''}
         // 调用对应服务
         try {
             if (providerType === 'ollama' && ollamaServiceRef.current) {
-                await ollamaServiceRef.current.streamChat(historyMessages, onToken, onComplete, onError);
+                await ollamaServiceRef.current.streamChat(llmMessages, onToken, onComplete, onError);
             } else if (providerType === 'webllm' && webllmServiceRef.current) {
-                await webllmServiceRef.current.streamChat(historyMessages, onToken, onComplete, onError);
+                await webllmServiceRef.current.streamChat(llmMessages, onToken, onComplete, onError);
             } else {
                 throw new Error('没有可用的 LLM 服务');
             }
         } catch (error) {
             onError(error instanceof Error ? error : new Error('未知错误'));
         }
-    }, [messages, isGenerating, status, providerType, activeFilePath, buildContextPrompt]);
+    }, [messages, isGenerating, status, providerType, activeFilePath, buildContextInfo, getSystemPrompt]);
 
     /**
      * 加载聊天历史
