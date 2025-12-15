@@ -411,8 +411,8 @@ select:focus {
 }
 
 .finder-spacer {
-  flex: 1;
-  min-width: 4px;
+  min-width: 8px;
+  flex-shrink: 0;
 }
 
 .finder-count {
