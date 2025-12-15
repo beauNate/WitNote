@@ -152,6 +152,10 @@ select:focus {
   background: var(--bg-main);
   position: relative;
   overflow: hidden;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-chat {
@@ -173,6 +177,7 @@ select:focus {
 }
 
 .main-inner {
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -994,12 +999,15 @@ select:focus {
   flex: 1;
   overflow-y: auto;
   padding: 0 40px 48px;
-  width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
 }
 
 .editor-content {
-  width: 100%;
-  max-width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
 }
 
 
@@ -1041,10 +1049,12 @@ select:focus {
   background: transparent;
   border: none;
   margin-bottom: 24px;
-  width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
   text-align: center;
   resize: none;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .editor-title::placeholder {
@@ -1052,7 +1062,8 @@ select:focus {
 }
 
 .editor-body {
-  width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
   font-size: 17px;
   line-height: 1.8;
   color: var(--text-primary);
@@ -1061,6 +1072,7 @@ select:focus {
   resize: none;
   min-height: 400px;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .editor-body::placeholder {
