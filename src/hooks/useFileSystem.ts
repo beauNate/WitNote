@@ -40,7 +40,7 @@ export interface UseFileSystemReturn {
     saveFile: () => Promise<void>
     setFileContent: (content: string) => void
     createNewFile: (name: string, inDirectory?: string) => Promise<void>
-    createNewFolder: (name: string, inDirectory?: string) => Promise<void>
+    createNewFolder: (name: string, inDirectory?: string) => Promise<string | null>
     deleteFile: (path: string) => Promise<void>
     renameItem: (oldPath: string, newName: string) => Promise<void>
     toggleFileFormat: () => Promise<void>
@@ -254,13 +254,47 @@ export function useFileSystem(): UseFileSystemReturn {
     }, [vaultPath, activeFolder, refreshTree, openFile])
 
     /**
-     * 创建新文件夹
+     * 递归查找文件夹节点
      */
-    const createNewFolder = useCallback(async (name: string, inDirectory?: string) => {
-        if (!vaultPath) return
+    const findNodeByPath = (nodes: FileNode[], path: string): FileNode | null => {
+        for (const node of nodes) {
+            if (node.path === path) return node
+            if (node.children) {
+                const found = findNodeByPath(node.children, path)
+                if (found) return found
+            }
+        }
+        return null
+    }
+
+    /**
+     * 创建新文件夹（自动检查重名并编号）
+     * 返回实际创建的文件夹路径
+     */
+    const createNewFolder = useCallback(async (name: string, inDirectory?: string): Promise<string | null> => {
+        if (!vaultPath) return null
 
         const dir = inDirectory || activeFolder?.path || ''
-        const path = dir ? `${dir}/${name}` : name
+
+        // 获取同级目录下的现有文件夹名称（支持嵌套文件夹）
+        let siblings: FileNode[] = []
+        if (dir) {
+            const parentNode = findNodeByPath(fileTree, dir)
+            siblings = parentNode?.children?.filter(c => c.isDirectory) || []
+        } else {
+            siblings = fileTree.filter(n => n.isDirectory)
+        }
+        const existingNames = new Set(siblings.map(n => n.name))
+
+        // 自动编号：检查是否重名
+        let finalName = name
+        let counter = 2
+        while (existingNames.has(finalName)) {
+            finalName = `${name} ${counter}`
+            counter++
+        }
+
+        const path = dir ? `${dir}/${finalName}` : finalName
 
         try {
             await window.fs.createDirectory(path)
@@ -268,16 +302,18 @@ export function useFileSystem(): UseFileSystemReturn {
 
             // 选中新创建的文件夹
             const newNode: FileNode = {
-                name,
+                name: finalName,
                 path,
                 isDirectory: true,
                 children: []
             }
             selectFolder(newNode)
+            return path
         } catch (error) {
             console.error('创建文件夹失败:', error)
+            return null
         }
-    }, [vaultPath, activeFolder, refreshTree, selectFolder])
+    }, [vaultPath, activeFolder, fileTree, refreshTree, selectFolder])
 
     /**
      * 删除文件

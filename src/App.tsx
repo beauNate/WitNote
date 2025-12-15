@@ -69,6 +69,7 @@ const AppContent: React.FC = () => {
     const [newFolderTargetDir, setNewFolderTargetDir] = useState('')  // 新建文件夹的目标目录
     const [showRenameDialog, setShowRenameDialog] = useState(false)
     const [renameTarget, setRenameTarget] = useState<FileNode | null>(null)
+    const [editingFolderPath, setEditingFolderPath] = useState<string | null>(null)  // 正在内联编辑的文件夹
 
     // 颜色系统
     const [colors, setColors] = useState<Record<string, ColorKey>>({})
@@ -407,13 +408,25 @@ const AppContent: React.FC = () => {
                                                         setShowRenameDialog(true)
                                                     }}
                                                     onDelete={handleDelete}
-                                                    onCreateFolder={(inDir) => {
-                                                        setNewFolderTargetDir(inDir || '')
-                                                        setShowNewFolderDialog(true)
+                                                    onCreateFolder={async (inDir) => {
+                                                        // 直接创建"未命名文件夹"并进入编辑状态
+                                                        const actualPath = await createNewFolder('未命名文件夹', inDir)
+                                                        if (actualPath) {
+                                                            setEditingFolderPath(actualPath)
+                                                        }
                                                     }}
                                                     getColor={getColor}
                                                     onColorChange={setColor}
                                                     isRootSelected={false}
+                                                    editingPath={editingFolderPath}
+                                                    onEditComplete={async (path, newName) => {
+                                                        setEditingFolderPath(null)
+                                                        // 如果名称变化了，执行重命名
+                                                        const currentName = path.split('/').pop() || ''
+                                                        if (newName !== currentName) {
+                                                            await renameItem(path, newName)
+                                                        }
+                                                    }}
                                                 />
                                             ) : (
                                                 <div className="sidebar-empty-hint">
@@ -437,8 +450,12 @@ const AppContent: React.FC = () => {
                                         style={{ position: 'fixed', left: sidebarMenu.x, top: sidebarMenu.y }}
                                         onMouseDown={e => e.stopPropagation()}
                                     >
-                                        <button onClick={() => {
-                                            setShowNewFolderDialog(true)
+                                        <button onClick={async () => {
+                                            // 直接在根目录创建"未命名文件夹"并进入编辑状态
+                                            const actualPath = await createNewFolder('未命名文件夹')
+                                            if (actualPath) {
+                                                setEditingFolderPath(actualPath)
+                                            }
                                             setSidebarMenu({ show: false, x: 0, y: 0 })
                                         }}>新建文件夹</button>
                                     </div>
@@ -449,7 +466,12 @@ const AppContent: React.FC = () => {
                                     {vaultPath ? (
                                         <button
                                             className="sidebar-footer-btn"
-                                            onClick={() => setShowNewFolderDialog(true)}
+                                            onClick={async () => {
+                                                const actualPath = await createNewFolder('未命名文件夹')
+                                                if (actualPath) {
+                                                    setEditingFolderPath(actualPath)
+                                                }
+                                            }}
                                         >
                                             <FolderPlus size={14} strokeWidth={1.5} />
                                             <span>新建文件夹</span>
@@ -467,7 +489,8 @@ const AppContent: React.FC = () => {
                             </div>
                         </Panel>
                     </>
-                )}
+                )
+                }
 
                 {/* 中间内容区 */}
                 <Panel defaultSize={leftCollapsed && rightCollapsed ? 100 : 50} minSize={30} className="panel-main">
@@ -551,14 +574,16 @@ const AppContent: React.FC = () => {
                 </Panel>
 
                 {/* 右侧 AI 面板 */}
-                {!rightCollapsed && (
-                    <>
-                        <Panel defaultSize={25} minSize={25} maxSize={25} className="panel-chat">
-                            <ChatPanel llm={llm} />
-                        </Panel>
-                    </>
-                )}
-            </PanelGroup>
+                {
+                    !rightCollapsed && (
+                        <>
+                            <Panel defaultSize={25} minSize={25} maxSize={25} className="panel-chat">
+                                <ChatPanel llm={llm} />
+                            </Panel>
+                        </>
+                    )
+                }
+            </PanelGroup >
 
             {/* 画廊右键菜单 */}
             {

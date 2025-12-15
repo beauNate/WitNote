@@ -45,6 +45,9 @@ interface FileTreeProps {
     rootName?: string
     isRootSelected?: boolean
     onRootSelect?: () => void
+    // 内联编辑
+    editingPath?: string | null
+    onEditComplete?: (path: string, newName: string) => void
 }
 
 export const FileTree: React.FC<FileTreeProps> = ({
@@ -58,7 +61,9 @@ export const FileTree: React.FC<FileTreeProps> = ({
     onColorChange,
     rootName,
     isRootSelected,
-    onRootSelect
+    onRootSelect,
+    editingPath,
+    onEditComplete
 }) => {
     const [contextMenu, setContextMenu] = useState<ContextMenuState>({
         show: false,
@@ -160,6 +165,8 @@ export const FileTree: React.FC<FileTreeProps> = ({
                     onContextMenu={openContextMenu}
                     getColor={getColor}
                     level={rootName ? 1 : 0}
+                    editingPath={editingPath}
+                    onEditComplete={onEditComplete}
                 />
             ))}
 
@@ -214,6 +221,8 @@ interface FileTreeItemProps {
     onContextMenu: (e: React.MouseEvent, node: FileNode) => void
     getColor?: (path: string) => ColorKey
     level: number
+    editingPath?: string | null  // 正在编辑的文件夹路径
+    onEditComplete?: (path: string, newName: string) => void  // 编辑完成回调
 }
 
 const FileTreeItem: React.FC<FileTreeItemProps> = ({
@@ -222,9 +231,41 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({
     onFileSelect,
     onContextMenu,
     getColor,
-    level
+    level,
+    editingPath,
+    onEditComplete
 }) => {
     const [isExpanded, setIsExpanded] = useState(level < 1)
+    const [editValue, setEditValue] = useState(node.name)
+    const inputRef = React.useRef<HTMLInputElement>(null)
+
+    const isEditing = editingPath === node.path
+
+    // 编辑状态时自动聚焦并全选
+    React.useEffect(() => {
+        if (isEditing && inputRef.current) {
+            inputRef.current.focus()
+            inputRef.current.select()
+        }
+    }, [isEditing])
+
+    const handleEditBlur = () => {
+        if (onEditComplete) {
+            const newName = editValue.trim() || '未命名文件夹'
+            onEditComplete(node.path, newName)
+        }
+    }
+
+    const handleEditKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleEditBlur()
+        } else if (e.key === 'Escape') {
+            setEditValue(node.name)
+            if (onEditComplete) {
+                onEditComplete(node.path, node.name)
+            }
+        }
+    }
 
     const isActive = activeFilePath === node.path
     // 只有包含子文件夹时才显示箭头（不考虑文件）
@@ -282,7 +323,19 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({
 
                 <span className="finder-icon">{getIcon()}</span>
 
-                <span className="finder-name">{node.name}</span>
+                {isEditing ? (
+                    <input
+                        ref={inputRef}
+                        className="finder-name-input"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={handleEditBlur}
+                        onKeyDown={handleEditKeyDown}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                ) : (
+                    <span className="finder-name">{node.name}</span>
+                )}
 
                 <span className="finder-spacer" />
 
@@ -311,6 +364,8 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({
                             onContextMenu={onContextMenu}
                             getColor={getColor}
                             level={level + 1}
+                            editingPath={editingPath}
+                            onEditComplete={onEditComplete}
                         />
                     ))}
                 </div>

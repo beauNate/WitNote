@@ -397,6 +397,19 @@ select:focus {
   white-space: nowrap;
 }
 
+/* 内联编辑输入框 */
+.finder-name-input {
+  flex: 1;
+  font-size: 13px;
+  padding: 2px 4px;
+  margin: -2px 0;
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+}
+
 .finder-spacer {
   flex: 1;
   min-width: 4px;
