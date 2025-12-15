@@ -80,7 +80,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
     } = llm
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }, [messages])
 
     const handleSend = async () => {

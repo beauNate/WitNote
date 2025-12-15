@@ -134,25 +134,41 @@ export const Editor: React.FC<EditorProps> = ({
         }
     }
 
-    // 自动调整文本域高度
+    // 自动调整文本域高度（避免布局抖动）
     useEffect(() => {
         if (titleRef.current) {
-            titleRef.current.style.height = 'auto'
-            titleRef.current.style.height = `${titleRef.current.scrollHeight}px`
+            const el = titleRef.current
+            // 保存当前滚动位置
+            const scrollTop = scrollRef.current?.scrollTop || 0
+            // 临时设置高度来测量
+            el.style.height = '0'
+            el.style.height = `${el.scrollHeight}px`
+            // 恢复滚动位置
+            if (scrollRef.current) {
+                scrollRef.current.scrollTop = scrollTop
+            }
         }
     }, [title])
 
     useEffect(() => {
         if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto'
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+            const el = textareaRef.current
+            // 保存当前滚动位置
+            const scrollTop = scrollRef.current?.scrollTop || 0
+            // 临时设置高度来测量
+            el.style.height = '0'
+            el.style.height = `${Math.max(el.scrollHeight, 400)}px`  // 保持最小高度
+            // 恢复滚动位置
+            if (scrollRef.current) {
+                scrollRef.current.scrollTop = scrollTop
+            }
         }
     }, [content])
 
     const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setTitle(e.target.value)
-        // 自动调整高度
-        e.target.style.height = 'auto'
+        // 自动调整高度（避免 auto 导致的抖动）
+        e.target.style.height = '0'
         e.target.style.height = `${e.target.scrollHeight}px`
     }
 
