@@ -122,7 +122,7 @@ const AppContent: React.FC = () => {
         selectFolder,
         getAllFiles,
         setFileContent,
-        toggleFileFormat,
+        convertFileFormat,
         createNewFile,
         createNewFolder,
         renameItem,
@@ -600,7 +600,7 @@ const AppContent: React.FC = () => {
                                 fileName={activeFile.name}
                                 fileExtension={activeFile.extension || 'txt'}
                                 onTitleChange={handleTitleChange}
-                                onFormatToggle={toggleFileFormat}
+                                onFormatToggle={convertFileFormat}
                                 focusMode={focusMode}
                             />
                         ) : (

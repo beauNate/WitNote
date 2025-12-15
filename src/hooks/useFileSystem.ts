@@ -44,7 +44,7 @@ export interface UseFileSystemReturn {
     createNewFolder: (name: string, inDirectory?: string) => Promise<string | null>
     deleteFile: (path: string) => Promise<void>
     renameItem: (oldPath: string, newName: string) => Promise<void>
-    toggleFileFormat: () => Promise<void>
+    convertFileFormat: () => Promise<void>
 }
 
 export function useFileSystem(): UseFileSystemReturn {
@@ -392,9 +392,11 @@ export function useFileSystem(): UseFileSystemReturn {
     }, [activeFile, activeFolder])
 
     /**
-     * 切换文件格式 (.txt <-> .md)
+     * 格式转换器
+     * - MD → TXT：创建去除格式的 TXT 副本
+     * - TXT → MD：如果同名 MD 存在则打开，否则创建副本
      */
-    const toggleFileFormat = useCallback(async () => {
+    const convertFileFormat = useCallback(async () => {
         if (!activeFile) return
 
         const currentExt = activeFile.extension?.toLowerCase()
@@ -410,8 +412,67 @@ export function useFileSystem(): UseFileSystemReturn {
 
         const baseName = activeFile.name.replace(/\.[^/.]+$/, '')
         const newName = `${baseName}.${newExt}`
-        await renameItem(activeFile.path, newName)
-    }, [activeFile, renameItem])
+
+        // 获取目录路径
+        const pathParts = activeFile.path.split('/')
+        pathParts.pop()
+        const dir = pathParts.join('/')
+        const newPath = dir ? `${dir}/${newName}` : newName
+
+        // 检查目标文件是否已存在
+        const existingFile = findNodeByPath(fileTree, newPath)
+
+        if (existingFile) {
+            // 目标文件已存在，直接打开它
+            await openFile(existingFile)
+            return
+        }
+
+        // 目标文件不存在，创建新副本
+        let convertedContent = fileContent
+
+        // 只有 MD → TXT 需要去除格式
+        if (newExt === 'txt') {
+            convertedContent = convertedContent
+                // 移除标题标记
+                .replace(/^#{1,6}\s+/gm, '')
+                // 移除加粗
+                .replace(/\*\*(.+?)\*\*/g, '$1')
+                .replace(/__(.+?)__/g, '$1')
+                // 移除斜体
+                .replace(/\*(.+?)\*/g, '$1')
+                .replace(/_(.+?)_/g, '$1')
+                // 移除行内代码
+                .replace(/`(.+?)`/g, '$1')
+                // 移除链接，保留文字
+                .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+                // 移除图片
+                .replace(/!\[.*?\]\(.+?\)/g, '')
+                // 移除引用标记
+                .replace(/^>\s+/gm, '')
+                // 移除列表标记
+                .replace(/^[-*+]\s+/gm, '')
+                .replace(/^\d+\.\s+/gm, '')
+        }
+
+        try {
+            // 创建新文件
+            await window.fs.createFile(newPath)
+            await window.fs.writeFile(newPath, convertedContent)
+            await refreshTree()
+
+            // 打开新创建的文件
+            const newNode: FileNode = {
+                name: newName,
+                path: newPath,
+                isDirectory: false,
+                extension: newExt
+            }
+            await openFile(newNode)
+        } catch (error) {
+            console.error('格式转换失败:', error)
+        }
+    }, [activeFile, fileContent, fileTree, refreshTree, openFile])
 
     return {
         vaultPath,
@@ -432,7 +493,7 @@ export function useFileSystem(): UseFileSystemReturn {
         createNewFolder,
         deleteFile,
         renameItem,
-        toggleFileFormat
+        convertFileFormat
     }
 }
 
