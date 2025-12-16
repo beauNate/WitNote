@@ -19,7 +19,9 @@ import {
     ArrowUp,
     ArrowDown,
     Link,
-    Unlink
+    Unlink,
+    Glasses,
+    Coffee
 } from 'lucide-react'
 import Onboarding from './components/Onboarding'
 import FileTree, { ColorKey } from './components/FileTree'
@@ -362,40 +364,35 @@ const AppContent: React.FC = () => {
             files = files.filter(f => getColor(f.path) === filterColor)
         }
 
-        // 检查是否有自定义排序
+        // 排序逻辑：手动排序的在前保持顺序，未排序的按时间倒序在后
         const orderKey = activeFolder?.path || '__root_files__'
         const customOrder = folderOrder.getOrder(orderKey)
 
-        if (customOrder.length > 0) {
-            // 使用自定义排序
-            files = [...files].sort((a, b) => {
-                const indexA = customOrder.indexOf(a.path)
-                const indexB = customOrder.indexOf(b.path)
-                // 不在列表中的放到最后
-                if (indexA === -1 && indexB === -1) return 0
-                if (indexA === -1) return 1
-                if (indexB === -1) return -1
-                return indexA - indexB
-            })
-        } else {
-            // 使用默认排序
-            files = [...files].sort((a, b) => {
-                switch (sortBy) {
-                    case 'name-asc':
-                        return a.name.localeCompare(b.name)
-                    case 'name-desc':
-                        return b.name.localeCompare(a.name)
-                    case 'time-asc':
-                        return (a.modifiedAt || 0) - (b.modifiedAt || 0)
-                    case 'time-desc':
-                    default:
-                        return (b.modifiedAt || 0) - (a.modifiedAt || 0)
-                }
-            })
+        // 分离已排序和未排序的文件
+        const orderedFiles: FileNode[] = []
+        const unorderedFiles: FileNode[] = []
+
+        for (const file of files) {
+            if (customOrder.includes(file.path)) {
+                orderedFiles.push(file)
+            } else {
+                unorderedFiles.push(file)
+            }
         }
 
-        return files
-    }, [currentFiles, filterColor, sortBy, getColor, activeFolder?.path, folderOrder])
+        // 已排序的按自定义顺序排序
+        orderedFiles.sort((a, b) => {
+            return customOrder.indexOf(a.path) - customOrder.indexOf(b.path)
+        })
+
+        // 未排序的按时间倒序
+        unorderedFiles.sort((a, b) => {
+            return (b.modifiedAt || 0) - (a.modifiedAt || 0)
+        })
+
+        // 合并：手动排序的在前，未排序的在后
+        return [...orderedFiles, ...unorderedFiles]
+    }, [currentFiles, filterColor, getColor, activeFolder?.path, folderOrder])
 
     // 拖拽时的虚拟排序预览
     const virtualOrderFiles = useMemo(() => {
@@ -530,7 +527,11 @@ const AppContent: React.FC = () => {
                 onClick={toggleFocusMode}
                 title={focusMode ? '恢复边栏' : '专注模式'}
             >
-                <Columns size={16} strokeWidth={1.5} />
+                {focusMode ? (
+                    <Glasses size={16} strokeWidth={1.5} />
+                ) : (
+                    <Coffee size={16} strokeWidth={1.5} />
+                )}
             </button>
 
             {/* 对话框 */}
@@ -816,20 +817,7 @@ const AppContent: React.FC = () => {
                                     <>
                                         {/* 画廊头部 - 只有操作按钮 */}
                                         <div className={`gallery-header ${focusMode ? 'focus-mode' : ''}`}>
-                                            <div className="gallery-actions">
-                                                {/* 排序切换按钮 */}
-                                                <button
-                                                    className="action-btn"
-                                                    onClick={() => setSortBy(prev => prev === 'time-desc' ? 'time-asc' : 'time-desc')}
-                                                    title={sortBy === 'time-desc' ? '最新优先' : '最早优先'}
-                                                >
-                                                    {sortBy === 'time-desc' ? (
-                                                        <ArrowUp size={16} strokeWidth={1.5} />
-                                                    ) : (
-                                                        <ArrowDown size={16} strokeWidth={1.5} />
-                                                    )}
-                                                </button>
-                                            </div>
+                                            {/* gallery-actions 已移除排序按钮 */}
                                         </div>
 
                                         {/* 文件网格 - 第一个永远是新建卡片 */}
