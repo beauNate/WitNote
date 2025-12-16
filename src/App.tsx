@@ -9,19 +9,14 @@ import {
     PanelGroup
 } from 'react-resizable-panels'
 import {
-    FolderPlus,
-    Folder,
-    FolderOpen,
     Home,
     Plus,
     Minus,
-    Columns,
-    ArrowUp,
-    ArrowDown,
     Link,
     Unlink,
     Glasses,
-    Coffee
+    Coffee,
+    Settings
 } from 'lucide-react'
 import Onboarding from './components/Onboarding'
 import FileTree, { ColorKey } from './components/FileTree'
@@ -795,39 +790,40 @@ const AppContent: React.FC = () => {
                                 <div className="sidebar-footer">
                                     {vaultPath ? (
                                         <>
-                                            <button
-                                                className="sidebar-footer-btn primary"
-                                                onClick={async () => {
-                                                    const actualPath = await createNewFolder('未命名文件夹')
-                                                    if (actualPath) {
-                                                        setEditingFolderPath(actualPath)
-                                                    }
-                                                }}
-                                            >
-                                                <FolderPlus size={14} strokeWidth={1.5} />
-                                                <span>新建文件夹</span>
-                                            </button>
-                                            <button
-                                                className="sidebar-footer-btn connected"
-                                                onClick={async () => {
-                                                    // 确认对话框
-                                                    const confirmed = window.confirm(
-                                                        '确定要断开此文件夹的链接吗？\n\n' +
-                                                        '⚠️ 这将断开应用与本地文件夹的连接，但不会删除文件夹中的任何文件。\n\n' +
-                                                        '您的所有笔记和文件都会保留完好。'
-                                                    )
+                                            {/* 设置按钮 + 已链接文件夹按钮 */}
+                                            <div className="sidebar-footer-row">
+                                                <button
+                                                    className="sidebar-footer-btn settings"
+                                                    onClick={() => {
+                                                        // TODO: 打开设置面板
+                                                        console.log('打开设置')
+                                                    }}
+                                                    title="设置"
+                                                >
+                                                    <Settings size={14} strokeWidth={1.5} />
+                                                </button>
+                                                <button
+                                                    className="sidebar-footer-btn connected flex-1"
+                                                    onClick={async () => {
+                                                        // 确认对话框
+                                                        const confirmed = window.confirm(
+                                                            '确定要断开此文件夹的链接吗？\n\n' +
+                                                            '⚠️ 这将断开应用与本地文件夹的连接，但不会删除文件夹中的任何文件。\n\n' +
+                                                            '您的所有笔记和文件都会保留完好。'
+                                                        )
 
-                                                    if (confirmed) {
-                                                        // 断开连接：清除存储的路径并重新加载
-                                                        await window.fs.disconnectVault()
-                                                        window.location.reload()
-                                                    }
-                                                }}
-                                                title="断开连接"
-                                            >
-                                                <Link size={14} strokeWidth={1.5} />
-                                                <span>已链接文件夹</span>
-                                            </button>
+                                                        if (confirmed) {
+                                                            // 断开连接：清除存储的路径并重新加载
+                                                            await window.fs.disconnectVault()
+                                                            window.location.reload()
+                                                        }
+                                                    }}
+                                                    title="断开连接"
+                                                >
+                                                    <Link size={14} strokeWidth={1.5} />
+                                                    <span>已链接文件夹</span>
+                                                </button>
+                                            </div>
                                         </>
                                     ) : (
                                         <button

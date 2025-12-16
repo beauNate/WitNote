@@ -77,9 +77,10 @@ select:focus {
   outline: none;
 }
 
-/* 隐藏滚动条 */
+/* 全局滚动条样式 - 细且淡 */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -87,8 +88,12 @@ select:focus {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.12);
 }
 
 /* ============ 应用根 ============ */
@@ -412,6 +417,31 @@ select:focus {
   color: var(--text-primary);
   background: var(--bg-hover);
   border-color: var(--text-primary);
+}
+
+/* 底部按钮行布局 */
+.sidebar-footer-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.sidebar-footer-btn.flex-1 {
+  flex: 1;
+}
+
+/* 设置按钮样式 */
+.sidebar-footer-btn.settings {
+  width: auto;
+  padding: 10px 14px;
+  color: var(--text-tertiary);
+  border-color: var(--border-color);
+  border-style: solid;
+}
+
+.sidebar-footer-btn.settings:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 /* ============ Finder 文件树 ============ */
