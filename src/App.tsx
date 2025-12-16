@@ -87,8 +87,15 @@ const AppContent: React.FC = () => {
     const [renameTarget, setRenameTarget] = useState<FileNode | null>(null)
     const [editingFolderPath, setEditingFolderPath] = useState<string | null>(null)  // 正在内联编辑的文件夹
 
-    // 颜色系统
-    const [colors, setColors] = useState<Record<string, ColorKey>>({})
+    // 颜色系统（从 localStorage 加载持久化）
+    const [colors, setColors] = useState<Record<string, ColorKey>>(() => {
+        try {
+            const saved = localStorage.getItem('zen-note-colors')
+            return saved ? JSON.parse(saved) : {}
+        } catch {
+            return {}
+        }
+    })
 
     // 排序（默认最新优先 time-desc，点击切换为最早优先 time-asc）
     const [sortBy, setSortBy] = useState<SortOption>('time-desc')
@@ -312,6 +319,12 @@ const AppContent: React.FC = () => {
             const next = { ...prev }
             if (color === 'none') delete next[path]
             else next[path] = color
+            // 保存到 localStorage
+            try {
+                localStorage.setItem('zen-note-colors', JSON.stringify(next))
+            } catch (e) {
+                console.error('保存颜色失败:', e)
+            }
             return next
         })
     }
@@ -466,10 +479,10 @@ const AppContent: React.FC = () => {
         const color = getColor(path)
         const c = COLORS.find(x => x.key === color)
         if (!c || color === 'none') {
-            // 默认蓝色投影
+            // 默认白色背景 + 蓝色投影
             return {
                 border: 'rgba(0,0,0,0.08)',
-                bg: 'transparent',
+                bg: 'rgba(255, 255, 255, 0.95)',
                 shadow: 'rgba(59, 130, 246, 0.25)'
             }
         }
