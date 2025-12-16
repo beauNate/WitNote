@@ -551,15 +551,10 @@ select:focus {
   transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
-/* 正在拖拽的卡片 - 原位置变暗变灰 */
+/* 正在拖拽的卡片 - 原位置完全隐藏 */
 .file-card-square.dragging,
 .file-card-glass.dragging {
-  opacity: 0.35;
-  filter: grayscale(80%) brightness(0.7);
-  transform: scale(0.98);
-  box-shadow: none;
-  background: rgba(0, 0, 0, 0.05) !important;
-  border-color: transparent !important;
+  opacity: 0;
 }
 
 /* 拖拽目标高亮 */
