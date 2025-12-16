@@ -364,34 +364,52 @@ const AppContent: React.FC = () => {
             files = files.filter(f => getColor(f.path) === filterColor)
         }
 
-        // 排序逻辑：手动排序的在前保持顺序，未排序的按时间倒序在后
+        // 排序逻辑：
+        // 1. 获取保存的顺序列表
+        // 2. 新文件（不在列表中的）按时间倒序插入到列表开头
+        // 3. 按列表顺序排序
         const orderKey = activeFolder?.path || '__root_files__'
         const customOrder = folderOrder.getOrder(orderKey)
 
-        // 分离已排序和未排序的文件
-        const orderedFiles: FileNode[] = []
-        const unorderedFiles: FileNode[] = []
-
-        for (const file of files) {
-            if (customOrder.includes(file.path)) {
-                orderedFiles.push(file)
-            } else {
-                unorderedFiles.push(file)
-            }
-        }
-
-        // 已排序的按自定义顺序排序
-        orderedFiles.sort((a, b) => {
-            return customOrder.indexOf(a.path) - customOrder.indexOf(b.path)
-        })
-
-        // 未排序的按时间倒序
-        unorderedFiles.sort((a, b) => {
+        // 先按时间倒序排列所有文件
+        const sortedByTime = [...files].sort((a, b) => {
             return (b.modifiedAt || 0) - (a.modifiedAt || 0)
         })
 
-        // 合并：手动排序的在前，未排序的在后
-        return [...orderedFiles, ...unorderedFiles]
+        if (customOrder.length === 0) {
+            // 没有自定义顺序，直接按时间倒序
+            return sortedByTime
+        }
+
+        // 有自定义顺序：将新文件插入到顺序列表开头
+        const updatedOrder = [...customOrder]
+        const newFiles: FileNode[] = []
+
+        for (const file of sortedByTime) {
+            if (!customOrder.includes(file.path)) {
+                newFiles.push(file)
+            }
+        }
+
+        // 新文件按时间倒序（已经是了），插入到列表开头
+        for (const file of newFiles) {
+            updatedOrder.unshift(file.path)
+        }
+
+        // 如果有新文件，更新保存的顺序
+        if (newFiles.length > 0) {
+            folderOrder.setOrder(orderKey, updatedOrder)
+        }
+
+        // 按更新后的顺序排序
+        return sortedByTime.sort((a, b) => {
+            const indexA = updatedOrder.indexOf(a.path)
+            const indexB = updatedOrder.indexOf(b.path)
+            if (indexA === -1 && indexB === -1) return 0
+            if (indexA === -1) return 1
+            if (indexB === -1) return -1
+            return indexA - indexB
+        })
     }, [currentFiles, filterColor, getColor, activeFolder?.path, folderOrder])
 
     // 拖拽时的虚拟排序预览
