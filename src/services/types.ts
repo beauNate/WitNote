@@ -122,9 +122,83 @@ export const SYSTEM_PROMPT_FULL = `你是「禅意笔记本」的写作助手，
 // 兼容旧代码
 export const SYSTEM_PROMPT = SYSTEM_PROMPT_LITE;
 
-// 默认 WebLLM 模型 (使用较小的模型以加快加载速度)
-// 可选模型列表: https://github.com/mlc-ai/web-llm#available-models
+// 默认 WebLLM 模型 (内置模型)
 export const DEFAULT_WEBLLM_MODEL = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
+
+// WebLLM 可用模型列表
+export interface WebLLMModelInfo {
+    id: string;               // MLC 模型 ID
+    name: string;             // 显示名称
+    size: string;             // 参数量
+    quality: number;          // 质量评分 1-5
+    creativity: number;       // 创意评分 1-5
+    speed: string;            // 速度描述
+    useCase: string;          // 推荐用途
+    isBuiltin: boolean;       // 是否内置
+}
+
+export const WEBLLM_MODELS: WebLLMModelInfo[] = [
+    {
+        id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
+        name: 'Qwen2.5-0.5B',
+        size: '0.5B',
+        quality: 2,
+        creativity: 1,
+        speed: '🚀 极速',
+        useCase: '简单改写、测试环境',
+        isBuiltin: true
+    },
+    {
+        id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+        name: 'Qwen2.5-1.5B',
+        size: '1.5B',
+        quality: 4,
+        creativity: 3,
+        speed: '🚀 极速',
+        useCase: '最具性价比，低配设备首选',
+        isBuiltin: false
+    },
+    {
+        id: 'gemma-2-2b-it-q4f16_1-MLC',
+        name: 'Gemma 2 2B',
+        size: '2.6B',
+        quality: 3,
+        creativity: 5,
+        speed: '⚡ 很快',
+        useCase: '创意写作、散文、小说片段',
+        isBuiltin: false
+    },
+    {
+        id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
+        name: 'Llama 3.2 3B',
+        size: '3.2B',
+        quality: 3,
+        creativity: 3,
+        speed: '⚡ 很快',
+        useCase: '商务邮件、双语写作、通用助手',
+        isBuiltin: false
+    },
+    {
+        id: 'Qwen2.5-3B-Instruct-q4f16_1-MLC',
+        name: 'Qwen2.5-3B',
+        size: '3B',
+        quality: 5,
+        creativity: 4,
+        speed: '🚗 流畅',
+        useCase: '主力中文写作助手 (推荐)',
+        isBuiltin: false
+    },
+    {
+        id: 'Phi-3.5-mini-instruct-q4f16_1-MLC',
+        name: 'Phi-3.5 Mini',
+        size: '3.8B',
+        quality: 3,
+        creativity: 2,
+        speed: '🐢 较重',
+        useCase: '严谨逻辑、大纲生成、学术辅助',
+        isBuiltin: false
+    }
+];
 
 // Ollama 默认配置
 export const OLLAMA_BASE_URL = 'http://localhost:11434';

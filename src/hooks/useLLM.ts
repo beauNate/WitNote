@@ -12,6 +12,8 @@ import {
     LoadProgress,
     OllamaModel,
     DEFAULT_WEBLLM_MODEL,
+    WEBLLM_MODELS,
+    WebLLMModelInfo,
     SYSTEM_PROMPT_LITE,
     SYSTEM_PROMPT_FULL
 } from '../services/types';
@@ -44,6 +46,13 @@ export interface UseLLMReturn {
     ollamaModels: OllamaModel[];
     selectedOllamaModel: string;
     setSelectedOllamaModel: (model: string) => void;
+
+    // WebLLM 相关
+    webllmModels: WebLLMModelInfo[];
+    selectedWebLLMModel: string;
+    setSelectedWebLLMModel: (modelId: string) => Promise<void>;
+    downloadedModels: Set<string>;  // 已下载的模型 ID 集合
+    deleteModel: (modelId: string) => Promise<void>;  // 删除模型缓存
 
     // 聊天相关
     messages: ChatMessage[];
@@ -90,6 +99,13 @@ export function useLLM(): UseLLMReturn {
     // Ollama 状态
     const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
     const [selectedOllamaModel, setSelectedOllamaModel] = useState<string>('');
+
+    // WebLLM 模型状态
+    const [selectedWebLLMModel, setSelectedWebLLMModelState] = useState<string>(DEFAULT_WEBLLM_MODEL);
+    // 已下载的模型（内置模型默认已下载）
+    const [downloadedModels, setDownloadedModels] = useState<Set<string>>(
+        new Set([DEFAULT_WEBLLM_MODEL])
+    );
 
     // 聊天状态
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -787,6 +803,89 @@ ${fileList}${hasMore ? '\n... (更多文章)' : ''}
         setMessages(prev => [...prev, newMessage]);
     }, []);
 
+    /**
+     * 切换 WebLLM 模型
+     */
+    const setSelectedWebLLMModel = useCallback(async (modelId: string) => {
+        if (modelId === selectedWebLLMModel) return;
+
+        console.log('🔄 切换 WebLLM 模型:', modelId);
+        setSelectedWebLLMModelState(modelId);
+
+        // 如果当前是 WebLLM 提供者，重新加载模型
+        if (providerType === 'webllm') {
+            // 销毁旧服务
+            if (webllmServiceRef.current) {
+                webllmServiceRef.current.destroy();
+                webllmServiceRef.current = null;
+            }
+
+            setStatus('loading');
+            setModelName(modelId);
+
+            const webllmService = new WebLLMService(modelId);
+            webllmService.setProgressCallback((progress) => {
+                setLoadProgress(progress);
+            });
+
+            try {
+                await webllmService.initialize();
+                webllmServiceRef.current = webllmService;
+                setStatus('ready');
+                setLoadProgress(null);
+                // 标记模型为已下载
+                setDownloadedModels(prev => new Set([...prev, modelId]));
+                console.log('✅ WebLLM 模型切换成功:', modelId);
+            } catch (error) {
+                console.error('❌ WebLLM 模型切换失败:', error);
+                const errMsg = error instanceof Error ? error.message : '未知错误';
+                setErrorMessage(`模型加载失败: ${errMsg}`);
+                setStatus('error');
+            }
+        }
+    }, [selectedWebLLMModel, providerType]);
+
+    /**
+     * 删除模型缓存
+     */
+    const deleteModel = useCallback(async (modelId: string) => {
+        // 不能删除当前使用的模型
+        if (modelId === selectedWebLLMModel) {
+            console.warn('⚠️ 不能删除当前使用的模型');
+            return;
+        }
+
+        console.log('🗑️ 删除模型缓存:', modelId);
+
+        try {
+            // 删除 Cache Storage 中的模型缓存
+            const cacheNames = await caches.keys();
+            for (const name of cacheNames) {
+                if (name.includes('webllm') || name.includes('transformers')) {
+                    const cache = await caches.open(name);
+                    const keys = await cache.keys();
+                    for (const key of keys) {
+                        if (key.url.includes(modelId.replace(/-/g, ''))) {
+                            await cache.delete(key);
+                            console.log('  删除缓存:', key.url);
+                        }
+                    }
+                }
+            }
+
+            // 从已下载列表中移除
+            setDownloadedModels(prev => {
+                const next = new Set(prev);
+                next.delete(modelId);
+                return next;
+            });
+
+            console.log('✅ 模型缓存已删除:', modelId);
+        } catch (error) {
+            console.error('❌ 删除模型缓存失败:', error);
+        }
+    }, [selectedWebLLMModel]);
+
     // 启动时检测
     useEffect(() => {
         detectAndInitialize();
@@ -810,6 +909,12 @@ ${fileList}${hasMore ? '\n... (更多文章)' : ''}
         ollamaModels,
         selectedOllamaModel,
         setSelectedOllamaModel: handleSetSelectedOllamaModel,
+        // WebLLM 模型
+        webllmModels: WEBLLM_MODELS,
+        selectedWebLLMModel,
+        setSelectedWebLLMModel,
+        downloadedModels,
+        deleteModel,
         messages,
         isGenerating,
         contextType,

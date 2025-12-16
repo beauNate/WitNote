@@ -1425,49 +1425,21 @@ select:focus {
   border-top: 1px solid var(--border-color);
 }
 
-/* 状态栏 - 左右两端布局，强制单行 */
+/* 状态栏 - 靠左布局 */
 .chat-status-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 10px 14px;
   font-size: 12px;
-  flex-wrap: nowrap;
   gap: 8px;
-  min-width: 0;
 }
 
-/* 左侧：咖啡杯 + 上下文（优先占更多空间） */
-.chat-context-info {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--text-secondary);
-  min-width: 0;
-  flex: 2;
-}
-
-.context-coffee {
-  color: #5d7b47;
-  flex-shrink: 0;
-}
-
-.context-text {
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-/* 右侧：脑袋 + 模型选择（更紧凑） */
+/* 模型选择区 */
 .chat-model-info {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-width: 0;
-  flex-shrink: 1;
-  justify-content: flex-end;
 }
 
 .model-brain {
@@ -1506,6 +1478,276 @@ select:focus {
 
 .model-select-inline:hover {
   color: var(--text-primary);
+}
+
+/* WebLLM 模型选择器 */
+.webllm-model-selector {
+  position: relative;
+}
+
+.model-label.clickable {
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.model-label.clickable:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.model-dropdown {
+  position: fixed;
+  bottom: 120px;
+  right: 16px;
+  min-width: 260px;
+  max-width: 280px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  z-index: 9999;
+}
+
+/* 下拉菜单头部 */
+.model-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.model-dropdown-header .header-icon {
+  font-size: 14px;
+}
+
+/* 模型列表项 */
+.model-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.model-item:last-child {
+  border-bottom: none;
+}
+
+.model-item.active {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+/* 主行：名称 + 状态按钮 */
+.model-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.model-item-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.model-item-left:hover .model-item-name {
+  color: var(--accent-color);
+}
+
+.model-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: color var(--transition-fast);
+}
+
+.model-item-size {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.model-item-right {
+  flex-shrink: 0;
+}
+
+/* 标签样式 */
+.model-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.model-tag.builtin {
+  color: white;
+  background: var(--accent-color);
+}
+
+.model-tag.active {
+  color: var(--accent-color);
+  background: rgba(76, 175, 80, 0.12);
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+.model-tag.downloaded {
+  color: var(--text-muted);
+  background: var(--bg-hover);
+}
+
+/* 删除按钮 */
+.model-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 6px;
+  transition: all var(--transition-fast);
+}
+
+.model-delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.model-item-right {
+  display: flex;
+  align-items: center;
+}
+
+/* 下载按钮 */
+.model-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.model-download-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+/* 使用按钮 - 悬停切换文字 */
+.model-use-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 50px;
+  justify-content: center;
+}
+
+.model-use-btn .btn-hover {
+  display: none;
+}
+
+.model-use-btn:hover {
+  background: rgba(76, 175, 80, 0.15);
+  color: var(--accent-color);
+}
+
+.model-use-btn:hover .btn-default {
+  display: none;
+}
+
+.model-use-btn:hover .btn-hover {
+  display: inline;
+}
+
+/* 下载进度条 - 内联显示 */
+.model-download-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+}
+
+.model-download-progress .progress-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-hover);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.model-download-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+.model-download-progress .progress-text {
+  font-size: 10px;
+  color: #3b82f6;
+  font-weight: 600;
+  min-width: 32px;
+  text-align: right;
+}
+
+/* 展开详情 */
+.model-item-details {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.detail-speed {
+  flex-shrink: 0;
+}
+
+.detail-use {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .retry-btn {

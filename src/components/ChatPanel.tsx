@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Send, Square, Sparkles, Brain, Coffee } from 'lucide-react'
+import { Send, Square, Sparkles, Brain, Check, Download, Trash2 } from 'lucide-react'
 import { ChatMessage } from '../services/types'
 import { UseLLMReturn } from '../hooks/useLLM'
 import { marked } from 'marked'
@@ -69,6 +69,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
         ollamaModels,
         selectedOllamaModel,
         setSelectedOllamaModel,
+        webllmModels,
+        selectedWebLLMModel,
+        setSelectedWebLLMModel,
+        downloadedModels,
+        deleteModel,
         messages,
         isGenerating,
         contextType,
@@ -78,6 +83,27 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
         abortGeneration,
         retryDetection
     } = llm
+
+    const [showModelMenu, setShowModelMenu] = useState(false)
+    const [downloadingModel, setDownloadingModel] = useState<string | null>(null)
+    const [expandedModel, setExpandedModel] = useState<string | null>(null)
+    const menuRef = useRef<HTMLDivElement>(null)
+
+    // 点击外部关闭模型菜单
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                // 正在下载时不关闭
+                if (!downloadingModel) {
+                    setShowModelMenu(false)
+                }
+            }
+        }
+        if (showModelMenu) {
+            document.addEventListener('mousedown', handleClickOutside)
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [showModelMenu, downloadingModel])
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -134,38 +160,164 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
 
             {/* 底部区域 */}
             <div className="chat-footer">
-                {/* 状态栏：左侧咖啡杯+上下文，右侧脑袋+模型选择 */}
+                {/* 状态栏：模型选择靠左 */}
                 <div className="chat-status-bar">
-                    {/* 左侧：咖啡杯 + 上下文提示 */}
-                    <div className="chat-context-info">
-                        <Coffee size={18} strokeWidth={1.5} className="context-coffee" />
-                        <span className="context-text">
-                            {contextType === 'file' && activeFileName
-                                ? `我看到文章`
-                                : contextType === 'folder' && activeFolderName
-                                    ? `我看到文件夹`
-                                    : contextType === 'folder' && !activeFolderName
-                                        ? `我看到全部文件`
-                                        : '选择文件或文件夹'}
-                        </span>
-                    </div>
 
                     {/* 右侧：脑袋 + 模型选择 */}
                     <div className="chat-model-info">
                         <Brain size={18} strokeWidth={1.5} className="model-brain" />
                         {status === 'ready' ? (
-                            providerType === 'ollama' && ollamaModels.length > 1 ? (
-                                <select
-                                    className="model-select-inline"
-                                    value={selectedOllamaModel}
-                                    onChange={(e) => setSelectedOllamaModel(e.target.value)}
-                                >
-                                    {ollamaModels.map((model) => (
-                                        <option key={model.name} value={model.name}>
-                                            {formatModelName(model.name)}
-                                        </option>
-                                    ))}
-                                </select>
+                            providerType === 'ollama' && ollamaModels.length >= 1 ? (
+                                <div className="webllm-model-selector" ref={menuRef}>
+                                    <button
+                                        className="model-label clickable"
+                                        onClick={() => setShowModelMenu(!showModelMenu)}
+                                    >
+                                        {formatModelName(selectedOllamaModel || modelName)}
+                                    </button>
+                                    {showModelMenu && (
+                                        <div className="model-dropdown">
+                                            {/* Ollama 头部提示 */}
+                                            <div className="model-dropdown-header">
+                                                <span className="header-icon">🔗</span>
+                                                <span>已连接外部软件 Ollama</span>
+                                            </div>
+                                            {ollamaModels.map((model) => {
+                                                const isCurrentModel = model.name === selectedOllamaModel
+                                                return (
+                                                    <div
+                                                        key={model.name}
+                                                        className={`model-item ${isCurrentModel ? 'active' : ''}`}
+                                                    >
+                                                        <div className="model-item-row">
+                                                            <div className="model-item-left">
+                                                                <span className="model-item-name">{formatModelName(model.name)}</span>
+                                                            </div>
+                                                            <div className="model-item-right">
+                                                                {isCurrentModel ? (
+                                                                    <span className="model-tag active">
+                                                                        <Check size={10} /> 使用中
+                                                                    </span>
+                                                                ) : (
+                                                                    <button
+                                                                        className="model-use-btn"
+                                                                        onClick={() => {
+                                                                            setSelectedOllamaModel(model.name)
+                                                                            setShowModelMenu(false)
+                                                                        }}
+                                                                    >
+                                                                        使用
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : providerType === 'webllm' ? (
+                                <div className="webllm-model-selector" ref={menuRef}>
+                                    <button
+                                        className="model-label clickable"
+                                        onClick={() => setShowModelMenu(!showModelMenu)}
+                                    >
+                                        {webllmModels.find(m => m.id === selectedWebLLMModel)?.name || formatModelName(modelName)}
+                                    </button>
+                                    {showModelMenu && (
+                                        <div className="model-dropdown">
+                                            {webllmModels.map((model) => {
+                                                const isCurrentModel = model.id === selectedWebLLMModel
+                                                const isDownloading = downloadingModel === model.id
+                                                const isExpanded = expandedModel === model.id
+                                                const downloadProgress = isDownloading ? (loadProgress?.progress || 0) : 0
+
+                                                return (
+                                                    <div
+                                                        key={model.id}
+                                                        className={`model-item ${isCurrentModel ? 'active' : ''}`}
+                                                    >
+                                                        {/* 主行：名称 + 尺寸 + 状态按钮 */}
+                                                        <div className="model-item-row">
+                                                            <div
+                                                                className="model-item-left"
+                                                                onClick={() => setExpandedModel(isExpanded ? null : model.id)}
+                                                            >
+                                                                <span className="model-item-name">{model.name}</span>
+                                                                <span className="model-item-size">{model.size}</span>
+                                                                {model.isBuiltin && <span className="model-tag builtin">内置</span>}
+                                                            </div>
+
+                                                            <div className="model-item-right">
+                                                                {isDownloading ? (
+                                                                    <div className="model-download-progress">
+                                                                        <div className="progress-bar">
+                                                                            <div
+                                                                                className="progress-fill"
+                                                                                style={{ width: `${downloadProgress}%` }}
+                                                                            />
+                                                                        </div>
+                                                                        <span className="progress-text">{downloadProgress}%</span>
+                                                                    </div>
+                                                                ) : isCurrentModel ? (
+                                                                    <span className="model-tag active">
+                                                                        <Check size={10} /> 使用中
+                                                                    </span>
+                                                                ) : downloadedModels.has(model.id) ? (
+                                                                    <button
+                                                                        className="model-use-btn"
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation()
+                                                                            await setSelectedWebLLMModel(model.id)
+                                                                        }}
+                                                                    >
+                                                                        <span className="btn-default">已下载</span>
+                                                                        <span className="btn-hover">使用</span>
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        className="model-download-btn"
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation()
+                                                                            setDownloadingModel(model.id)
+                                                                            await setSelectedWebLLMModel(model.id)
+                                                                            setDownloadingModel(null)
+                                                                        }}
+                                                                    >
+                                                                        <Download size={12} /> 下载
+                                                                    </button>
+                                                                )}
+
+                                                                {/* 删除按钮 - 非内置模型且已下载 */}
+                                                                {!model.isBuiltin && downloadedModels.has(model.id) && !isCurrentModel && !isDownloading && (
+                                                                    <button
+                                                                        className="model-delete-btn"
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation()
+                                                                            await deleteModel(model.id)
+                                                                        }}
+                                                                        title="删除模型"
+                                                                    >
+                                                                        <Trash2 size={12} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 展开详情 */}
+                                                        {isExpanded && (
+                                                            <div className="model-item-details">
+                                                                <span className="detail-speed">{model.speed}</span>
+                                                                <span className="detail-use">{model.useCase}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
                             ) : (
                                 <span className="model-label">{formatModelName(modelName)}</span>
                             )
