@@ -1,12 +1,12 @@
 appId: com.zennote.app
-productName: 禅意笔记本
+productName: 智简笔记本
 copyright: Copyright © 2024
 
 mac:
   target:
     - target: dmg
       arch:
-        - universal
+        - arm64
   category: public.app-category.productivity
   icon: build/icon.icns
   darkModeSupport: true
@@ -35,6 +35,12 @@ directories:
 files:
   - "dist/**/*"
   - "dist-electron/**/*"
+  - "!dist/*.dmg"
+  - "!dist/*.blockmap"
+  - "!dist/mac-arm64"
+  - "!dist/builder-*.yml"
+  - "!dist/builder-*.yaml"
+  - "!dist/latest-*.yml"
   - "package.json"
 
 extraResources:
@@ -42,3 +48,5 @@ extraResources:
     to: "public"
     filter:
       - "**/*"
+
+asar: true

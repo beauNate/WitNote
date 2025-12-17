@@ -448,8 +448,10 @@ function createWindow() {
         mainWindow.loadURL(VITE_DEV_SERVER_URL)
         mainWindow.webContents.openDevTools()
     } else {
-        console.log('📦 生产模式: 加载本地文件')
-        mainWindow.loadFile(join(__dirname, '../dist/index.html'))
+        // 生产模式: 加载 asar 包中的 dist/index.html
+        const indexPath = join(app.getAppPath(), 'dist', 'index.html')
+        console.log('📦 生产模式: 加载', indexPath)
+        mainWindow.loadFile(indexPath)
     }
 
     mainWindow.on('closed', () => {

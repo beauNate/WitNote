@@ -43,14 +43,47 @@
   "build": {
     "appId": "com.zikedece.witnote",
     "productName": "智简笔记本",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
     "mac": {
-      "target": "dmg",
+      "target": {
+        "target": "dmg",
+        "arch": [
+          "arm64"
+        ]
+      },
       "category": "public.app-category.productivity",
-      "icon": "src/icon/icon.icns"
+      "icon": "build/icon.icns",
+      "darkModeSupport": true
     },
     "dmg": {
-      "title": "智简笔记本",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
-    }
+      "title": "${productName}",
+      "artifactName": "${productName}-${version}.${ext}",
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 130,
+          "y": 180,
+          "type": "file"
+        },
+        {
+          "x": 410,
+          "y": 180,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "asar": true
   }
 }
