@@ -317,19 +317,27 @@ export function useLLM(): UseLLMReturn {
 
     /**
      * 扫描已缓存的 WebLLM 模型
-     * 简化检测：统计每个模型的缓存条目数量
+     * 改进检测：基于文件大小验证下载完整性
+     * 只有当缓存文件的总大小达到预期大小的 80% 以上时,才认为模型已下载
      */
     const scanCachedModels = useCallback(async () => {
         try {
-            // WebLLM 使用 Cache API 存储模型
             const cacheNames = await caches.keys();
+            const modelCacheInfo = new Map<string, {
+                count: number;
+                hasConfig: boolean;
+                hasWasm: boolean;
+                totalSize: number;  // 缓存文件总大小(字节)
+            }>();
 
-            // 用于跟踪每个模型的缓存文件数量
-            const modelCacheCount = new Map<string, number>();
-
-            // 初始化所有模型的缓存计数
+            // 初始化
             for (const model of WEBLLM_MODELS) {
-                modelCacheCount.set(model.id, 0);
+                modelCacheInfo.set(model.id, {
+                    count: 0,
+                    hasConfig: false,
+                    hasWasm: false,
+                    totalSize: 0
+                });
             }
 
             // 遍历所有缓存
@@ -340,51 +348,80 @@ export function useLLM(): UseLLMReturn {
                 for (const request of requests) {
                     const url = request.url.toLowerCase();
 
-                    // 检查 URL 是否包含已知模型 ID
                     for (const model of WEBLLM_MODELS) {
                         const modelIdLower = model.id.toLowerCase();
-                        // 也尝试不同的 ID 变体
-                        const modelIdVariant1 = model.id.replace(/-/g, '_').toLowerCase();
-                        const modelIdVariant2 = model.id.replace(/-/g, '').toLowerCase();
-                        // 模型名称简化形式（移除版本后缀）
+                        const modelIdVariant = model.id.replace(/-/g, '_').toLowerCase();
                         const modelNamePart = model.id.split('-')[0].toLowerCase();
 
                         if (url.includes(modelIdLower) ||
-                            url.includes(modelIdVariant1) ||
-                            url.includes(modelIdVariant2) ||
+                            url.includes(modelIdVariant) ||
                             (modelNamePart.length > 4 && url.includes(modelNamePart))) {
-                            const count = modelCacheCount.get(model.id) || 0;
-                            modelCacheCount.set(model.id, count + 1);
+
+                            const info = modelCacheInfo.get(model.id)!;
+                            info.count++;
+
+                            // 检查文件类型
+                            if (url.includes('config.json')) info.hasConfig = true;
+                            if (url.includes('.wasm')) info.hasWasm = true;
+
+                            // 获取文件大小
+                            try {
+                                const response = await cache.match(request);
+                                if (response) {
+                                    const blob = await response.blob();
+                                    info.totalSize += blob.size;
+                                }
+                            } catch (e) {
+                                console.warn('无法获取文件大小:', url, e);
+                            }
                         }
                     }
                 }
             }
 
-            // 判断哪些模型是完整下载的
-            // 阈值：需要至少 5 个缓存条目才认为下载完整
-            const CACHE_THRESHOLD = 5;
+            // 判断完整性
             const completeModels = new Set<string>();
 
-            modelCacheCount.forEach((count, modelId) => {
+            modelCacheInfo.forEach((info, modelId) => {
+                const modelConfig = WEBLLM_MODELS.find(m => m.id === modelId);
+                if (!modelConfig) return;
+
                 const isBuiltin = modelId === DEFAULT_WEBLLM_MODEL;
+
                 if (isBuiltin) {
+                    // 内置模型默认视为已下载
                     completeModels.add(modelId);
-                } else if (count >= CACHE_THRESHOLD) {
-                    completeModels.add(modelId);
-                    console.log(`✅ 模型 ${modelId} 下载完整: ${count} 个缓存条目`);
-                } else if (count > 0) {
-                    console.log(`⚠️ 模型 ${modelId} 下载不完整: ${count} 个缓存条目 (需要 ${CACHE_THRESHOLD})`);
+                    console.log(`✅ 内置模型 ${modelId} 已加载`);
+                } else {
+                    // 计算实际大小(MB)
+                    const actualSizeMB = info.totalSize / (1024 * 1024);
+                    const expectedSizeMB = modelConfig.expectedSize;
+
+                    // 最小大小阈值: 预期大小的 80%
+                    const MIN_SIZE_RATIO = 0.8;
+                    const minRequiredSizeMB = expectedSizeMB * MIN_SIZE_RATIO;
+
+                    // 验证条件:
+                    // 1. 必须有 config.json
+                    // 2. 文件总大小必须达到预期大小的 80% 以上
+                    if (info.hasConfig && actualSizeMB >= minRequiredSizeMB) {
+                        completeModels.add(modelId);
+                        console.log(`✅ 模型 ${modelId} 下载完整: ${actualSizeMB.toFixed(0)}MB / ${expectedSizeMB}MB (${info.count} 个文件)`);
+                    } else if (info.count > 0) {
+                        console.log(`⚠️ 模型 ${modelId} 下载不完整: ${actualSizeMB.toFixed(0)}MB / ${expectedSizeMB}MB (需要至少 ${minRequiredSizeMB.toFixed(0)}MB, hasConfig=${info.hasConfig})`);
+                    }
                 }
             });
 
             if (completeModels.size > 0) {
-                console.log('📦 检测到已完整下载的模型:', Array.from(completeModels));
                 setDownloadedModels(completeModels);
             }
         } catch (error) {
             console.log('缓存扫描失败:', error);
         }
     }, []);
+
+
 
     /**
      * 检测并初始化 LLM 引擎
@@ -862,63 +899,67 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
     /**
      * 删除模型缓存
      */
+    /**
+     * 删除模型缓存
+     * 改进：支持删除整个 Cache 库，并清理所有变体 URL
+     */
     const deleteModel = useCallback(async (modelId: string) => {
-        // 不能删除当前使用的模型
         if (modelId === selectedWebLLMModel) {
             console.warn('⚠️ 不能删除当前使用的模型');
-            return;
-        }
-
-        // 不能删除内置模型
-        if (modelId === DEFAULT_WEBLLM_MODEL) {
-            console.warn('⚠️ 不能删除内置模型');
             return;
         }
 
         console.log('🗑️ 删除模型缓存:', modelId);
 
         try {
-            // 生成多种可能的 ID 变体用于匹配
             const idVariants = [
-                modelId,
-                modelId.replace(/-/g, '_'),  // 连字符替换为下划线
-                modelId.replace(/-/g, ''),   // 移除连字符
                 modelId.toLowerCase(),
-                modelId.toLowerCase().replace(/-/g, '_'),
-                modelId.toLowerCase().replace(/-/g, '')
+                modelId.replace(/-/g, '_').toLowerCase(),
+                modelId.replace(/-/g, '').toLowerCase()
             ];
 
-            // 删除 Cache Storage 中的模型缓存
             const cacheNames = await caches.keys();
             let deletedCount = 0;
 
             for (const name of cacheNames) {
+                const nameLower = name.toLowerCase();
+                // 如果 Cache 名称直接包含模型 ID，直接删除整个 Cache
+                if (idVariants.some(v => nameLower.includes(v))) {
+                    await caches.delete(name);
+                    console.log(`🗑️ 删除整个缓存库: ${name}`);
+                    deletedCount++;
+                    continue;
+                }
+
+                // 否则遍历条目删除
                 const cache = await caches.open(name);
                 const keys = await cache.keys();
                 for (const key of keys) {
                     const url = key.url.toLowerCase();
-                    // 检查 URL 是否匹配任意一种 ID 变体
-                    const matches = idVariants.some(variant => url.includes(variant.toLowerCase()));
-                    if (matches) {
+                    if (idVariants.some(v => url.includes(v))) {
                         await cache.delete(key);
                         deletedCount++;
-                        console.log('  删除缓存:', key.url);
+                        console.log('  删除缓存条目:', key.url);
                     }
                 }
             }
 
-            // 从已下载列表中移除
+            console.log(`✅ 已删除模型 ${modelId} (涉及 ${deletedCount} 个缓存位置)`);
+
+            // 更新状态
             setDownloadedModels(prev => {
-                const next = new Set(prev);
-                next.delete(modelId);
-                return next;
+                const newSet = new Set(prev);
+                newSet.delete(modelId);
+                return newSet;
             });
 
-            console.log(`✅ 模型缓存已删除: ${modelId} (共 ${deletedCount} 个缓存项)`);
+            // 重新扫描以确认
+            setTimeout(scanCachedModels, 500);
+
         } catch (error) {
-            console.error('❌ 删除模型缓存失败:', error);
+            console.error('❌ 删除模型失败:', error);
         }
-    }, [selectedWebLLMModel]);
+    }, [selectedWebLLMModel, scanCachedModels]);
 
     // 启动时检测
     useEffect(() => {

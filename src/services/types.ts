@@ -135,6 +135,7 @@ export interface WebLLMModelInfo {
     speed: string;            // 速度描述
     useCase: string;          // 推荐用途
     isBuiltin: boolean;       // 是否内置
+    expectedSize: number;     // 预期文件总大小(MB),用于验证下载完整性
 }
 
 export const WEBLLM_MODELS: WebLLMModelInfo[] = [
@@ -146,7 +147,8 @@ export const WEBLLM_MODELS: WebLLMModelInfo[] = [
         creativity: 1,
         speed: '🚀 极速',
         useCase: '简单改写、测试环境',
-        isBuiltin: true
+        isBuiltin: true,
+        expectedSize: 550  // 约 550 MB
     },
     {
         id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
@@ -156,7 +158,8 @@ export const WEBLLM_MODELS: WebLLMModelInfo[] = [
         creativity: 3,
         speed: '🚀 极速',
         useCase: '最具性价比，低配设备首选',
-        isBuiltin: false
+        isBuiltin: false,
+        expectedSize: 990  // 约 990 MB
     },
     {
         id: 'gemma-2-2b-it-q4f16_1-MLC',
@@ -166,7 +169,8 @@ export const WEBLLM_MODELS: WebLLMModelInfo[] = [
         creativity: 5,
         speed: '⚡ 很快',
         useCase: '创意写作、散文、小说片段',
-        isBuiltin: false
+        isBuiltin: false,
+        expectedSize: 1710  // 约 1710 MB
     },
     {
         id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
@@ -176,7 +180,8 @@ export const WEBLLM_MODELS: WebLLMModelInfo[] = [
         creativity: 3,
         speed: '⚡ 很快',
         useCase: '商务邮件、双语写作、通用助手',
-        isBuiltin: false
+        isBuiltin: false,
+        expectedSize: 2020  // 约 2020 MB
     },
     {
         id: 'Qwen2.5-3B-Instruct-q4f16_1-MLC',
@@ -186,7 +191,8 @@ export const WEBLLM_MODELS: WebLLMModelInfo[] = [
         creativity: 4,
         speed: '🚗 流畅',
         useCase: '主力中文写作助手 (推荐)',
-        isBuiltin: false
+        isBuiltin: false,
+        expectedSize: 1820  // 约 1820 MB
     },
     {
         id: 'Phi-3.5-mini-instruct-q4f16_1-MLC',
@@ -196,7 +202,8 @@ export const WEBLLM_MODELS: WebLLMModelInfo[] = [
         creativity: 2,
         speed: '🐢 较重',
         useCase: '严谨逻辑、大纲生成、学术辅助',
-        isBuiltin: false
+        isBuiltin: false,
+        expectedSize: 2300  // 约 2300 MB
     }
 ];
 
