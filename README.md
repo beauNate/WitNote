@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="src/icon/智简icon 拷贝.png" alt="智简笔记本" width="128" height="128">
+</p>
+
 # 智简笔记本 (WitNote)
 
 > **大智若简，落笔生花**
@@ -5,6 +9,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)]()
+[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-M1%20|%20M2%20|%20M3%20|%20M4-green.svg)]()
 
 **智简笔记本** 是一款本地优先的 macOS AI 写作伴侣。
 我们将强大的**双模 AI 引擎**封装在极致简约的**原生卡片界面**之下。无云端依赖，无隐私焦虑，让智能回归轻盈。

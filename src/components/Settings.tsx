@@ -303,6 +303,9 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                                     智简笔记本 (WitNote) 是一款注重隐私的本地笔记应用，内置 AI 助手帮助您整理思绪、
                                     润色文章、回答问题。所有数据存储在本地，AI 模型也可完全离线运行。
                                 </p>
+                                <p className="guide-platform">
+                                    💻 推荐平台：Apple Silicon (M1 / M2 / M3 / M4 系列芯片) 的 Mac 设备
+                                </p>
                             </div>
                         </div>
 
@@ -383,6 +386,9 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                             </p>
                             <p className="guide-version">
                                 版本 1.0.0 · 2025
+                            </p>
+                            <p className="guide-license">
+                                📜 开源协议：<a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer">MIT License</a>
                             </p>
                         </div>
                     </div>
