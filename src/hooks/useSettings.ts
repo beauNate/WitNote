@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     // 外观
     theme: 'light',
     fontFamily: 'system',
-    fontSize: 13,
+    fontSize: 17,
 
     // Ollama 配置
     ollamaBaseUrl: 'http://localhost:11434',
@@ -116,7 +116,8 @@ export function useSettings(): UseSettingsReturn {
                 ? "'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif"
                 : "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif"
         );
-        document.documentElement.style.setProperty('--font-size-base', `${settings.fontSize}px`);
+        // 文章字体大小独立设置
+        document.documentElement.style.setProperty('--article-font-size', `${settings.fontSize}px`);
     }, [settings.fontFamily, settings.fontSize]);
 
     // 设置单个值

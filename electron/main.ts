@@ -40,7 +40,7 @@ const settingsStore = new Store<AppSettings>({
     defaults: {
         theme: 'light',
         fontFamily: 'system',
-        fontSize: 13,
+        fontSize: 17,
         ollamaBaseUrl: 'http://localhost:11434',
         ollamaEnabled: true,
         preferredEngine: 'ollama',

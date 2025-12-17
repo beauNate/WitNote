@@ -145,7 +145,7 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                                 </select>
                             </div>
                             <div className="settings-row">
-                                <label>字体大小</label>
+                                <label>文章字体大小</label>
                                 <div className="font-size-control">
                                     <input
                                         type="range"
