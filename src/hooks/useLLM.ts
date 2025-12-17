@@ -837,20 +837,40 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
             return;
         }
 
+        // 不能删除内置模型
+        if (modelId === DEFAULT_WEBLLM_MODEL) {
+            console.warn('⚠️ 不能删除内置模型');
+            return;
+        }
+
         console.log('🗑️ 删除模型缓存:', modelId);
 
         try {
+            // 生成多种可能的 ID 变体用于匹配
+            const idVariants = [
+                modelId,
+                modelId.replace(/-/g, '_'),  // 连字符替换为下划线
+                modelId.replace(/-/g, ''),   // 移除连字符
+                modelId.toLowerCase(),
+                modelId.toLowerCase().replace(/-/g, '_'),
+                modelId.toLowerCase().replace(/-/g, '')
+            ];
+
             // 删除 Cache Storage 中的模型缓存
             const cacheNames = await caches.keys();
+            let deletedCount = 0;
+
             for (const name of cacheNames) {
-                if (name.includes('webllm') || name.includes('transformers')) {
-                    const cache = await caches.open(name);
-                    const keys = await cache.keys();
-                    for (const key of keys) {
-                        if (key.url.includes(modelId.replace(/-/g, ''))) {
-                            await cache.delete(key);
-                            console.log('  删除缓存:', key.url);
-                        }
+                const cache = await caches.open(name);
+                const keys = await cache.keys();
+                for (const key of keys) {
+                    const url = key.url.toLowerCase();
+                    // 检查 URL 是否匹配任意一种 ID 变体
+                    const matches = idVariants.some(variant => url.includes(variant.toLowerCase()));
+                    if (matches) {
+                        await cache.delete(key);
+                        deletedCount++;
+                        console.log('  删除缓存:', key.url);
                     }
                 }
             }
@@ -862,7 +882,7 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
                 return next;
             });
 
-            console.log('✅ 模型缓存已删除:', modelId);
+            console.log(`✅ 模型缓存已删除: ${modelId} (共 ${deletedCount} 个缓存项)`);
         } catch (error) {
             console.error('❌ 删除模型缓存失败:', error);
         }
