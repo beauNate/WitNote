@@ -211,8 +211,6 @@ select:focus {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-right: 1px solid var(--border-color);
-  /* 为 macOS 标题栏留出空间 */
-  padding-top: var(--titlebar-height);
   overflow: hidden;
   height: 100%;
   display: flex;
