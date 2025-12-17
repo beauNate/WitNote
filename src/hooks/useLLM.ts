@@ -316,27 +316,20 @@ export function useLLM(): UseLLMReturn {
     }, [initializeOllama, initializeWebLLM, emitEngineChange]);
 
     /**
-     * 扫描已缓存的 WebLLM 模型（验证完整性）
+     * 扫描已缓存的 WebLLM 模型
+     * 简化检测：统计每个模型的缓存条目数量
      */
     const scanCachedModels = useCallback(async () => {
         try {
             // WebLLM 使用 Cache API 存储模型
             const cacheNames = await caches.keys();
 
-            // 用于跟踪每个模型的缓存文件
-            const modelCacheInfo = new Map<string, {
-                hasConfig: boolean;      // 是否有配置文件
-                hasWasm: boolean;        // 是否有 wasm 库
-                weightFileCount: number; // 权重文件数量
-            }>();
+            // 用于跟踪每个模型的缓存文件数量
+            const modelCacheCount = new Map<string, number>();
 
-            // 初始化所有模型的缓存信息
+            // 初始化所有模型的缓存计数
             for (const model of WEBLLM_MODELS) {
-                modelCacheInfo.set(model.id, {
-                    hasConfig: false,
-                    hasWasm: false,
-                    weightFileCount: 0
-                });
+                modelCacheCount.set(model.id, 0);
             }
 
             // 遍历所有缓存
@@ -350,41 +343,37 @@ export function useLLM(): UseLLMReturn {
                     // 检查 URL 是否包含已知模型 ID
                     for (const model of WEBLLM_MODELS) {
                         const modelIdLower = model.id.toLowerCase();
-                        const modelIdVariant = model.id.replace(/-/g, '_').toLowerCase();
+                        // 也尝试不同的 ID 变体
+                        const modelIdVariant1 = model.id.replace(/-/g, '_').toLowerCase();
+                        const modelIdVariant2 = model.id.replace(/-/g, '').toLowerCase();
+                        // 模型名称简化形式（移除版本后缀）
+                        const modelNamePart = model.id.split('-')[0].toLowerCase();
 
-                        if (url.includes(modelIdLower) || url.includes(modelIdVariant)) {
-                            const info = modelCacheInfo.get(model.id)!;
-
-                            // 检查是否是配置文件
-                            if (url.includes('mlc-chat-config.json') || url.includes('config.json')) {
-                                info.hasConfig = true;
-                            }
-                            // 检查是否是 wasm 库文件
-                            if (url.includes('.wasm')) {
-                                info.hasWasm = true;
-                            }
-                            // 检查是否是权重文件（.bin 或包含 params/weights）
-                            if (url.includes('.bin') || url.includes('params') || url.includes('weight')) {
-                                info.weightFileCount++;
-                            }
+                        if (url.includes(modelIdLower) ||
+                            url.includes(modelIdVariant1) ||
+                            url.includes(modelIdVariant2) ||
+                            (modelNamePart.length > 4 && url.includes(modelNamePart))) {
+                            const count = modelCacheCount.get(model.id) || 0;
+                            modelCacheCount.set(model.id, count + 1);
                         }
                     }
                 }
             }
 
             // 判断哪些模型是完整下载的
+            // 阈值：需要至少 5 个缓存条目才认为下载完整
+            const CACHE_THRESHOLD = 5;
             const completeModels = new Set<string>();
-            modelCacheInfo.forEach((info, modelId) => {
-                // 完整下载的标准：有配置文件 + 有 wasm 库 + 至少有一些权重文件
-                // 内置模型 (0.5B) 特殊处理，可能已经打包
+
+            modelCacheCount.forEach((count, modelId) => {
                 const isBuiltin = modelId === DEFAULT_WEBLLM_MODEL;
                 if (isBuiltin) {
                     completeModels.add(modelId);
-                } else if (info.hasConfig && info.hasWasm && info.weightFileCount >= 1) {
+                } else if (count >= CACHE_THRESHOLD) {
                     completeModels.add(modelId);
-                    console.log(`✅ 模型 ${modelId} 下载完整: config=${info.hasConfig}, wasm=${info.hasWasm}, weights=${info.weightFileCount}`);
-                } else if (info.hasConfig || info.hasWasm || info.weightFileCount > 0) {
-                    console.log(`⚠️ 模型 ${modelId} 下载不完整: config=${info.hasConfig}, wasm=${info.hasWasm}, weights=${info.weightFileCount}`);
+                    console.log(`✅ 模型 ${modelId} 下载完整: ${count} 个缓存条目`);
+                } else if (count > 0) {
+                    console.log(`⚠️ 模型 ${modelId} 下载不完整: ${count} 个缓存条目 (需要 ${CACHE_THRESHOLD})`);
                 }
             });
 
