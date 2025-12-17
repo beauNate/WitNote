@@ -142,6 +142,36 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                                 </div>
                             </div>
                         </div>
+
+                        {/* 编辑器偏好 */}
+                        <div className="settings-section">
+                            <h3 className="settings-section-title">编辑器</h3>
+                            <div className="settings-row">
+                                <label>默认文件格式</label>
+                                <select
+                                    value={settings.defaultFormat}
+                                    onChange={(e) => setSetting('defaultFormat', e.target.value as 'txt' | 'md')}
+                                    className="settings-select"
+                                >
+                                    <option value="md">Markdown (.md)</option>
+                                    <option value="txt">纯文本 (.txt)</option>
+                                </select>
+                            </div>
+                            <div className="settings-row">
+                                <label>智能格式转换</label>
+                                <label className="toggle-switch">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.smartFormatConversion}
+                                        onChange={(e) => setSetting('smartFormatConversion', e.target.checked)}
+                                    />
+                                    <span className="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p className="settings-hint">
+                                开启时，MD 转 TXT 会移除 Markdown 标记符号；关闭则保持内容不变
+                            </p>
+                        </div>
                     </div>
                 );
 

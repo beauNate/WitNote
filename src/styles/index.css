@@ -18,6 +18,7 @@
   --bg-sidebar: #f6f6f8;
   --bg-main: #ffffff;
   --bg-chat: #fafafc;
+  --bg-card: #ffffff;
   /* RGB 分量用于透明度控制 */
   --bg-sidebar-rgb: 246, 246, 248;
   --bg-main-rgb: 255, 255, 255;
@@ -58,6 +59,7 @@
   --bg-sidebar: #1c1c1e;
   --bg-main: #2c2c2e;
   --bg-chat: #1c1c1e;
+  --bg-card: rgba(255, 255, 255, 0.08);
   --bg-sidebar-rgb: 28, 28, 30;
   --bg-main-rgb: 44, 44, 46;
   --bg-chat-rgb: 28, 28, 30;
@@ -78,6 +80,7 @@
   --bg-sidebar: #f5f0e8;
   --bg-main: #faf6f0;
   --bg-chat: #f5f0e8;
+  --bg-card: rgba(139, 115, 85, 0.06);
   --bg-sidebar-rgb: 245, 240, 232;
   --bg-main-rgb: 250, 246, 240;
   --bg-chat-rgb: 245, 240, 232;
@@ -957,7 +960,7 @@ select:focus {
   border: 1px solid var(--border-color);
   cursor: pointer;
   transition: all var(--transition-normal);
-  background: var(--bg-main);
+  background: var(--bg-card);
   /* 保存标注颜色用于悬停效果 */
   --card-shadow-color: rgba(59, 130, 246, 0.3);
   /* 禁用文字选择，允许拖拽 */
@@ -1564,9 +1567,10 @@ select:focus {
 }
 
 .chat-bubble.assistant .bubble-content {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--bg-sidebar);
   color: var(--text-primary);
   border-bottom-left-radius: 4px;
+  border: 1px solid var(--border-color);
 }
 
 .typing-cursor {
@@ -1741,7 +1745,7 @@ select:focus {
   max-width: 280px;
   max-height: 400px;
   overflow-y: auto;
-  background: white;
+  background: var(--bg-main);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
@@ -1995,7 +1999,7 @@ select:focus {
   gap: 10px;
   padding: 10px 12px;
   margin: 0;
-  background: white;
+  background: var(--bg-main);
   border: 1.5px solid var(--border-color);
   border-radius: 16px;
   transition: all var(--transition-normal);

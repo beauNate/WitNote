@@ -33,6 +33,8 @@ interface AppSettings {
     autoFallback: boolean
     customSystemPrompt: string
     promptTemplates: Array<{ id: string; name: string; content: string }>
+    defaultFormat: 'txt' | 'md'
+    smartFormatConversion: boolean
 }
 
 const settingsStore = new Store<AppSettings>({
@@ -46,7 +48,9 @@ const settingsStore = new Store<AppSettings>({
         preferredEngine: 'ollama',
         autoFallback: true,
         customSystemPrompt: '',
-        promptTemplates: []
+        promptTemplates: [],
+        defaultFormat: 'md',
+        smartFormatConversion: true
     }
 })
 

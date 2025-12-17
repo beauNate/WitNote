@@ -30,6 +30,10 @@ export interface AppSettings {
     // 角色设定
     customSystemPrompt: string;
     promptTemplates: PromptTemplate[];
+
+    // 编辑器偏好
+    defaultFormat: 'txt' | 'md';  // 默认文件格式
+    smartFormatConversion: boolean;  // 智能格式转换（true: MD转TXT时去标符, false: 1:1转换）
 }
 
 // 默认设置
@@ -49,7 +53,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
     // 角色设定
     customSystemPrompt: '',
-    promptTemplates: []
+    promptTemplates: [],
+
+    // 编辑器偏好
+    defaultFormat: 'md',
+    smartFormatConversion: true
 };
 
 export interface UseSettingsReturn {
