@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import ReactDOM from 'react-dom'
 import {
     ChevronRight,
     ChevronDown,
@@ -259,11 +260,11 @@ export const FileTree: React.FC<FileTreeProps> = ({
                 />
             ))}
 
-            {/* 右键菜单 - 红黄绿圆圈 */}
-            {contextMenu.show && contextMenu.node && (
+            {/* 右键菜单 - 红黄绿圆圈 (使用 Portal 渲染到 body) */}
+            {contextMenu.show && contextMenu.node && ReactDOM.createPortal(
                 <div
                     className="context-menu"
-                    style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y }}
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
                     onMouseDown={e => e.stopPropagation()}
                 >
                     {/* 新建文件夹 - 在当前文件夹内创建 */}
@@ -297,7 +298,8 @@ export const FileTree: React.FC<FileTreeProps> = ({
 
                     <div className="menu-divider" />
                     <button onClick={() => handleAction('delete')} className="danger">删除</button>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* 空白填充区域 - 点击回到根目录 */}
@@ -331,11 +333,11 @@ export const FileTree: React.FC<FileTreeProps> = ({
                 }}
             />
 
-            {/* 空白区域右键菜单 */}
-            {blankMenu.show && (
+            {/* 空白区域右键菜单 (使用 Portal 渲染到 body) */}
+            {blankMenu.show && ReactDOM.createPortal(
                 <div
                     className="context-menu"
-                    style={{ position: 'fixed', left: blankMenu.x, top: blankMenu.y }}
+                    style={{ left: blankMenu.x, top: blankMenu.y }}
                     onMouseDown={e => e.stopPropagation()}
                 >
                     {onCreateFolder && (
@@ -344,7 +346,8 @@ export const FileTree: React.FC<FileTreeProps> = ({
                             setBlankMenu({ show: false, x: 0, y: 0 })
                         }}>新建文件夹</button>
                     )}
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     )

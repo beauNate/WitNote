@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useState, useMemo } from 'react'
+import ReactDOM from 'react-dom'
 import {
     Panel,
     PanelGroup
@@ -777,11 +778,11 @@ const AppContent: React.FC = () => {
                                     )}
                                 </div>
 
-                                {/* 侧边栏右键菜单 */}
-                                {sidebarMenu.show && (
+                                {/* 侧边栏右键菜单 (使用 Portal 渲染到 body) */}
+                                {sidebarMenu.show && ReactDOM.createPortal(
                                     <div
                                         className="sidebar-menu context-menu"
-                                        style={{ position: 'fixed', left: sidebarMenu.x, top: sidebarMenu.y }}
+                                        style={{ left: sidebarMenu.x, top: sidebarMenu.y }}
                                         onMouseDown={e => e.stopPropagation()}
                                     >
                                         <button onClick={async () => {
@@ -792,7 +793,8 @@ const AppContent: React.FC = () => {
                                             }
                                             setSidebarMenu({ show: false, x: 0, y: 0 })
                                         }}>新建文件夹</button>
-                                    </div>
+                                    </div>,
+                                    document.body
                                 )}
 
                                 {/* 底部操作按钮 */}
@@ -1001,12 +1003,12 @@ const AppContent: React.FC = () => {
                 }
             </PanelGroup >
 
-            {/* 画廊右键菜单 */}
+            {/* 画廊右键菜单 (使用 Portal 渲染到 body) */}
             {
-                galleryMenu.show && galleryMenu.node && (
+                galleryMenu.show && galleryMenu.node && ReactDOM.createPortal(
                     <div
                         className="gallery-menu context-menu"
-                        style={{ position: 'fixed', left: galleryMenu.x, top: galleryMenu.y }}
+                        style={{ left: galleryMenu.x, top: galleryMenu.y }}
                         onMouseDown={e => e.stopPropagation()}
                     >
                         <button onClick={() => handleGalleryAction('rename')}>重命名</button>
@@ -1033,7 +1035,8 @@ const AppContent: React.FC = () => {
 
                         <div className="menu-divider" />
                         <button className="danger" onClick={() => handleGalleryAction('delete')}>删除</button>
-                    </div>
+                    </div>,
+                    document.body
                 )
             }
         </div >
