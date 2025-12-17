@@ -296,11 +296,11 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                     <div className="settings-tab-content guide-content">
                         {/* 软件介绍 */}
                         <div className="settings-section">
-                            <h3 className="settings-section-title">关于禅意笔记本</h3>
+                            <h3 className="settings-section-title">关于智简笔记本</h3>
                             <div className="guide-intro">
-                                <p className="guide-tagline">本地优先的 AI 智能笔记本</p>
+                                <p className="guide-tagline">大智若简，落笔生花</p>
                                 <p className="guide-description">
-                                    禅意笔记本是一款注重隐私的本地笔记应用，内置 AI 助手帮助您整理思绪、
+                                    智简笔记本 (WitNote) 是一款注重隐私的本地笔记应用，内置 AI 助手帮助您整理思绪、
                                     润色文章、回答问题。所有数据存储在本地，AI 模型也可完全离线运行。
                                 </p>
                             </div>
@@ -310,10 +310,9 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                         <div className="settings-section">
                             <h3 className="settings-section-title">设计理念</h3>
                             <ul className="guide-list">
-                                <li><strong>本地优先</strong> — 数据存储在您选择的文件夹，随时可用其他编辑器打开</li>
-                                <li><strong>隐私至上</strong> — 支持完全离线的本地 AI 模型，无需联网</li>
-                                <li><strong>简约专注</strong> — 极简界面设计，让您专注于写作本身</li>
-                                <li><strong>双模 AI</strong> — WebLLM 轻量内置 + Ollama 强力扩展</li>
+                                <li><strong>智 (Smart)</strong> — 双模 AI 引擎驱动，主力 Ollama + 便携 WebLLM</li>
+                                <li><strong>简 (Simple)</strong> — iOS 风格卡片管理，拖拽即整理</li>
+                                <li><strong>安 (Secure)</strong> — 100% 本地存储，你的思想只属于你</li>
                             </ul>
                         </div>
 
@@ -374,10 +373,13 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                         <div className="settings-section">
                             <h3 className="settings-section-title">开发者</h3>
                             <p className="guide-developer">
-                                由 <strong>Maohuhu</strong> 独立开发
+                                由 <strong>zikedece</strong> 独立开发
+                            </p>
+                            <p className="guide-contact">
+                                📧 <a href="mailto:zikedece@proton.me">zikedece@proton.me</a>
                             </p>
                             <p className="guide-version">
-                                版本 0.4.0-beta · 2025
+                                版本 1.0.0 · 2025
                             </p>
                         </div>
                     </div>

@@ -479,7 +479,7 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
     /**
      * 构建上下文增强的系统提示词
      */
-    const buildContextPrompt = useCallback((userInput: string): string => {
+    const _buildContextPrompt = useCallback((userInput: string): string => {
         const systemPrompt = getSystemPrompt();
         const isLiteMode = providerType === 'webllm';
 

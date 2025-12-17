@@ -1,9 +1,9 @@
 {
-  "name": "zen-note",
+  "name": "witnote",
   "version": "1.0.0",
-  "description": "禅意笔记本 - 本地优先的 AI 记事本",
+  "description": "智简笔记本 - 大智若简的本地化 AI 写作伴侣 (WitNote)",
   "main": "dist-electron/main.js",
-  "author": "ZenNote Team",
+  "author": "zikedece <zikedece@proton.me>",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -38,11 +38,16 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.zennote.app",
-    "productName": "禅意笔记本",
+    "appId": "com.zikedece.witnote",
+    "productName": "智简笔记本",
     "mac": {
       "target": "dmg",
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "icon": "src/icon/icon.icns"
+    },
+    "dmg": {
+      "title": "智简笔记本",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   }
 }

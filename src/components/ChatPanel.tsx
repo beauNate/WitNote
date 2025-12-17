@@ -66,7 +66,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
         status,
         modelName,
         loadProgress,
-        errorMessage,
+        errorMessage: _errorMessage,
         ollamaModels,
         selectedOllamaModel,
         setSelectedOllamaModel,
@@ -77,9 +77,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
         deleteModel,
         messages,
         isGenerating,
-        contextType,
-        activeFileName,
-        activeFolderName,
+        contextType: _contextType,
+        activeFileName: _activeFileName,
+        activeFolderName: _activeFolderName,
         sendMessage,
         abortGeneration,
         retryDetection
@@ -145,12 +145,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
     const formatModelName = (name: string) => {
         const base = name.split(':')[0]
         return base.charAt(0).toUpperCase() + base.slice(1)
-    }
-
-    const getStatusClass = () => {
-        if (status === 'loading' || status === 'detecting') return 'status-loading'
-        if (status === 'error') return 'status-error'
-        return providerType === 'ollama' ? 'status-ollama' : 'status-webllm'
     }
 
     return (

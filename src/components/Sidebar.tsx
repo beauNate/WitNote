@@ -23,7 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     notes,
     activeNoteId,
     onNoteSelect,
-    onNewNote
+    onNewNote: _onNewNote
 }) => {
     return (
         <div className="sidebar">

@@ -18,7 +18,6 @@ import {
     Coffee,
     Settings
 } from 'lucide-react'
-import Onboarding from './components/Onboarding'
 import FileTree, { ColorKey } from './components/FileTree'
 import Editor from './components/Editor'
 import ChatPanel from './components/ChatPanel'
@@ -148,8 +147,8 @@ const AppContent: React.FC = () => {
     })
 
     // 排序（默认最新优先 time-desc，点击切换为最早优先 time-asc）
-    const [sortBy, setSortBy] = useState<SortOption>('time-desc')
-    const [filterColor, setFilterColor] = useState<ColorKey | 'all'>('all')
+    const [_sortBy, _setSortBy] = useState<SortOption>('time-desc')
+    const [filterColor, _setFilterColor] = useState<ColorKey | 'all'>('all')
 
     // 设置面板状态
     const [showSettings, setShowSettings] = useState(false)

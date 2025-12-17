@@ -531,7 +531,6 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({
                 // 同级排序：重新排列顺序
                 const currentPaths = siblings.map(s => s.path)
                 const draggedIndex = currentPaths.indexOf(data.path)
-                const targetIndex = currentPaths.indexOf(node.path)
 
                 if (draggedIndex !== -1) {
                     // 从原位置移除

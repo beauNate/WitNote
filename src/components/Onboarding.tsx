@@ -25,11 +25,11 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onSelectVault }) => {
                 <div className="onboarding-logo">🧘</div>
 
                 {/* 标题 */}
-                <h1 className="onboarding-title">禅意笔记本</h1>
+                <h1 className="onboarding-title">智简笔记本</h1>
 
                 {/* 描述 */}
                 <p className="onboarding-desc">
-                    本地优先的 AI 笔记应用<br />
+                    大智若简，落笔生花<br />
                     所有数据存储在您选择的文件夹中
                 </p>
 
