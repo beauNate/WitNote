@@ -1,9 +1,5 @@
-/**
- * 状态指示器
- * 中文状态文案 + 呼吸灯 + 模型选择
- */
-
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Sparkles } from 'lucide-react'
 import { LLMProviderType, LLMStatus, OllamaModel, LoadProgress } from '../services/types'
 
@@ -26,15 +22,26 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     onModelChange,
     loadProgress
 }) => {
-    // 获取状态文字（中文）
+    const { t } = useTranslation()
+
+    // 获取状态文字（多语言支持）
     const getStatusText = () => {
         switch (status) {
             case 'detecting':
-                return '正在检测...'
+                return t('chat.detecting')
             case 'loading':
-                return loadProgress ? `加载中 ${loadProgress.progress}%` : '加载模型中...'
+                if (loadProgress) {
+                    if (loadProgress.stage === 'downloading') {
+                        return `${t('chat.downloading')} ${loadProgress.progress}%`
+                    } else if (loadProgress.stage === 'init') {
+                        return t('chat.initializing')
+                    } else {
+                        return `${t('chat.loadingModel')} ${loadProgress.progress}%`
+                    }
+                }
+                return t('chat.loading')
             case 'error':
-                return '连接失败'
+                return t('chat.error')
             case 'ready':
                 return providerType === 'ollama' ? '已接入 Ollama' : '使用内置模型'
             default:

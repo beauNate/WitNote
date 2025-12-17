@@ -316,38 +316,81 @@ export function useLLM(): UseLLMReturn {
     }, [initializeOllama, initializeWebLLM, emitEngineChange]);
 
     /**
-     * 扫描已缓存的 WebLLM 模型
+     * 扫描已缓存的 WebLLM 模型（验证完整性）
      */
     const scanCachedModels = useCallback(async () => {
         try {
             // WebLLM 使用 Cache API 存储模型
             const cacheNames = await caches.keys();
-            const cachedModelIds = new Set<string>();
+
+            // 用于跟踪每个模型的缓存文件
+            const modelCacheInfo = new Map<string, {
+                hasConfig: boolean;      // 是否有配置文件
+                hasWasm: boolean;        // 是否有 wasm 库
+                weightFileCount: number; // 权重文件数量
+            }>();
+
+            // 初始化所有模型的缓存信息
+            for (const model of WEBLLM_MODELS) {
+                modelCacheInfo.set(model.id, {
+                    hasConfig: false,
+                    hasWasm: false,
+                    weightFileCount: 0
+                });
+            }
 
             // 遍历所有缓存
             for (const cacheName of cacheNames) {
-                // WebLLM 缓存通常包含模型 ID 在 URL 中
                 const cache = await caches.open(cacheName);
                 const requests = await cache.keys();
 
                 for (const request of requests) {
-                    const url = request.url;
+                    const url = request.url.toLowerCase();
+
                     // 检查 URL 是否包含已知模型 ID
                     for (const model of WEBLLM_MODELS) {
-                        if (url.includes(model.id) || url.includes(model.id.replace(/-/g, '_'))) {
-                            cachedModelIds.add(model.id);
+                        const modelIdLower = model.id.toLowerCase();
+                        const modelIdVariant = model.id.replace(/-/g, '_').toLowerCase();
+
+                        if (url.includes(modelIdLower) || url.includes(modelIdVariant)) {
+                            const info = modelCacheInfo.get(model.id)!;
+
+                            // 检查是否是配置文件
+                            if (url.includes('mlc-chat-config.json') || url.includes('config.json')) {
+                                info.hasConfig = true;
+                            }
+                            // 检查是否是 wasm 库文件
+                            if (url.includes('.wasm')) {
+                                info.hasWasm = true;
+                            }
+                            // 检查是否是权重文件（.bin 或包含 params/weights）
+                            if (url.includes('.bin') || url.includes('params') || url.includes('weight')) {
+                                info.weightFileCount++;
+                            }
                         }
                     }
                 }
             }
 
-            if (cachedModelIds.size > 0) {
-                console.log('📦 检测到已缓存的模型:', Array.from(cachedModelIds));
-                setDownloadedModels(prev => {
-                    const newSet = new Set(prev);
-                    cachedModelIds.forEach(id => newSet.add(id));
-                    return newSet;
-                });
+            // 判断哪些模型是完整下载的
+            const completeModels = new Set<string>();
+            modelCacheInfo.forEach((info, modelId) => {
+                // 完整下载的标准：有配置文件 + 有 wasm 库 + 至少有一些权重文件
+                // 内置模型 (0.5B) 特殊处理，可能已经打包
+                const isBuiltin = modelId === DEFAULT_WEBLLM_MODEL;
+                if (isBuiltin) {
+                    completeModels.add(modelId);
+                } else if (info.hasConfig && info.hasWasm && info.weightFileCount >= 1) {
+                    completeModels.add(modelId);
+                    console.log(`✅ 模型 ${modelId} 下载完整: config=${info.hasConfig}, wasm=${info.hasWasm}, weights=${info.weightFileCount}`);
+                } else if (info.hasConfig || info.hasWasm || info.weightFileCount > 0) {
+                    console.log(`⚠️ 模型 ${modelId} 下载不完整: config=${info.hasConfig}, wasm=${info.hasWasm}, weights=${info.weightFileCount}`);
+                }
+            });
+
+            if (completeModels.size > 0) {
+                console.log('📦 检测到已完整下载的模型:', Array.from(completeModels));
+                setDownloadedModels(completeModels);
             }
         } catch (error) {
             console.log('缓存扫描失败:', error);

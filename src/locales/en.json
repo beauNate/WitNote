@@ -40,7 +40,7 @@
         "send": "Send",
         "clear": "Clear Chat",
         "thinking": "Thinking...",
-        "loading": "Loading model...",
+        "loading": "Loading...",
         "error": "Error occurred",
         "retry": "Retry",
         "contextFile": "Reading",
@@ -55,7 +55,10 @@
         "download": "Download",
         "detecting": "Detecting...",
         "waitingReady": "Waiting...",
-        "deleteModel": "Delete Model"
+        "deleteModel": "Delete Model",
+        "downloading": "Downloading",
+        "loadingModel": "Loading",
+        "initializing": "Initializing..."
     },
     "model": {
         "speedUltraFast": "🚀 Ultra Fast",

@@ -40,7 +40,7 @@
         "send": "发送",
         "clear": "清空对话",
         "thinking": "思考中...",
-        "loading": "加载模型中...",
+        "loading": "加载中...",
         "error": "发生错误",
         "retry": "重试",
         "contextFile": "正在读取",
@@ -55,7 +55,10 @@
         "download": "下载",
         "detecting": "检测中...",
         "waitingReady": "等待就绪...",
-        "deleteModel": "删除模型"
+        "deleteModel": "删除模型",
+        "downloading": "正在下载",
+        "loadingModel": "正在加载",
+        "initializing": "正在初始化..."
     },
     "model": {
         "speedUltraFast": "🚀 极速",

@@ -375,7 +375,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
                             )
                         ) : status === 'loading' ? (
                             <div className="model-loading-status">
-                                <span className="loading-text">{t('chat.loading')}</span>
+                                <span className="loading-text">
+                                    {loadProgress ? (
+                                        loadProgress.stage === 'downloading'
+                                            ? `${t('chat.downloading')} ${loadProgress.progress}%`
+                                            : loadProgress.stage === 'init'
+                                                ? t('chat.initializing')
+                                                : `${t('chat.loadingModel')} ${loadProgress.progress}%`
+                                    ) : t('chat.loading')}
+                                </span>
                                 {loadProgress && (
                                     <div className="loading-progress-bar">
                                         <div

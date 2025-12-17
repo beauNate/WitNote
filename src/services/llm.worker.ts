@@ -71,26 +71,33 @@ async function initEngine(modelId: string) {
 
         console.log(`🔄 Worker: 开始加载模型 ${modelId}`);
 
-        // 发送初始进度
+        // 发送初始进度（stage 标识符，UI 层处理翻译）
         postMessage({
             type: 'progress',
             payload: {
                 stage: 'init',
                 progress: 0,
-                text: '正在初始化 WebLLM 引擎...'
+                text: ''  // UI 层根据 stage 显示翻译文本
             }
         });
 
         // 创建引擎并设置进度回调
         engine = new webllm.MLCEngine({
             initProgressCallback: (progress: { text: string; progress: number }) => {
-                console.log(`📥 加载进度: ${Math.round(progress.progress * 100)}% - ${progress.text}`);
+                const progressPercent = Math.round(progress.progress * 100);
+                const originalText = progress.text;
+
+                // 根据 WebLLM 返回的文本判断是下载还是加载
+                const isDownloading = originalText.toLowerCase().includes('fetch') ||
+                    originalText.toLowerCase().includes('download');
+
+                console.log(`📥 进度: ${progressPercent}% - ${originalText}`);
                 postMessage({
                     type: 'progress',
                     payload: {
-                        stage: progress.text,
-                        progress: Math.round(progress.progress * 100),
-                        text: progress.text
+                        stage: isDownloading ? 'downloading' : 'loading',
+                        progress: progressPercent,
+                        text: ''  // UI 层根据 stage 显示翻译文本
                     }
                 });
             }
