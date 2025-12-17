@@ -1686,9 +1686,116 @@ select:focus {
   gap: 6px;
 }
 
-.model-brain {
-  color: var(--text-tertiary);
+/* AI 状态呼吸灯指示器 */
+.ai-status-indicator {
+  position: relative;
+  width: 12px;
+  height: 12px;
   flex-shrink: 0;
+}
+
+.ai-status-indicator .indicator-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  z-index: 2;
+}
+
+.ai-status-indicator .indicator-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  opacity: 0.3;
+  animation: breathe 2s ease-in-out infinite;
+  z-index: 1;
+}
+
+/* 空闲状态 - 蓝色呼吸灯（使用固定颜色，不跟随主题） */
+.ai-status-indicator.idle .indicator-dot {
+  background: #007aff;
+}
+
+.ai-status-indicator.idle .indicator-glow {
+  background: #007aff;
+}
+
+/* 活跃状态 - 红色呼吸灯（生成中/加载中） */
+.ai-status-indicator.active .indicator-dot {
+  background: #ff453a;
+}
+
+.ai-status-indicator.active .indicator-glow {
+  background: #ff453a;
+  animation: breathe-active 1s ease-in-out infinite;
+}
+
+@keyframes breathe {
+
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.3;
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0.1;
+  }
+}
+
+@keyframes breathe-active {
+
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.4;
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.8);
+    opacity: 0.15;
+  }
+}
+
+/* 加载状态样式 - 同一行布局 */
+.model-loading-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+}
+
+.model-loading-status .loading-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.loading-progress-bar {
+  flex: 1;
+  min-width: 40px;
+  max-width: 60px;
+  height: 3px;
+  background: var(--bg-hover);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loading-progress-fill {
+  height: 100%;
+  background: var(--accent-color);
+  border-radius: 2px;
+  transition: width 0.3s ease;
 }
 
 .model-label {
@@ -1704,6 +1811,25 @@ select:focus {
 
 .model-label:hover {
   color: var(--text-primary);
+}
+
+/* 正在思考中状态 */
+.model-label.thinking {
+  color: #ff453a;
+  cursor: default;
+  animation: thinking-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes thinking-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .model-select-inline {

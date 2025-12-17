@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Send, Square, Sparkles, Brain, Check, Download, Trash2 } from 'lucide-react'
+import { Send, Square, Sparkles, Check, Download, Trash2 } from 'lucide-react'
 import { ChatMessage } from '../services/types'
 import { UseLLMReturn } from '../hooks/useLLM'
 import { marked } from 'marked'
@@ -187,11 +187,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
                 {/* 状态栏：模型选择靠左 */}
                 <div className="chat-status-bar">
 
-                    {/* 右侧：脑袋 + 模型选择 */}
+                    {/* AI 状态呼吸灯 */}
                     <div className="chat-model-info">
-                        <Brain size={18} strokeWidth={1.5} className="model-brain" />
+                        <div className={`ai-status-indicator ${isGenerating || status === 'loading' ? 'active' : 'idle'}`}>
+                            <span className="indicator-dot"></span>
+                            <span className="indicator-glow"></span>
+                        </div>
                         {status === 'ready' ? (
-                            providerType === 'ollama' && ollamaModels.length >= 1 ? (
+                            isGenerating ? (
+                                <span className="model-label thinking">正在思考中...</span>
+                            ) : providerType === 'ollama' && ollamaModels.length >= 1 ? (
                                 <div className="webllm-model-selector" ref={menuRef}>
                                     <button
                                         className="model-label clickable"
@@ -349,9 +354,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
                                 <span className="model-label">{formatModelName(modelName)}</span>
                             )
                         ) : status === 'loading' ? (
-                            <span className="model-label">
-                                Loading {loadProgress ? `${loadProgress.progress}%` : '...'}
-                            </span>
+                            <div className="model-loading-status">
+                                <span className="loading-text">加载模型中</span>
+                                {loadProgress && (
+                                    <div className="loading-progress-bar">
+                                        <div
+                                            className="loading-progress-fill"
+                                            style={{ width: `${loadProgress.progress}%` }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         ) : status === 'error' ? (
                             <button className="retry-btn" onClick={retryDetection}>
                                 重试
