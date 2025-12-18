@@ -1,59 +1,35 @@
 /**
  * useLLM Hook
- * 核心：双引擎管理、心跳检测、上下文注入、聊天持久化
+ * Ollama-only 架构：简化的本地AI引擎管理
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    LLMProviderType,
     LLMMessage,
     ChatMessage,
     LLMStatus,
     LoadProgress,
     OllamaModel,
-    DEFAULT_WEBLLM_MODEL,
-    WEBLLM_MODELS,
-    WebLLMModelInfo,
-    SYSTEM_PROMPT_LITE,
-    SYSTEM_PROMPT_FULL
+    SYSTEM_PROMPT,
+    RECOMMENDED_MODELS
 } from '../services/types';
 import { OllamaService } from '../services/OllamaService';
-import { WebLLMService } from '../services/WebLLMService';
 import { useSettings } from './useSettings';
 
-// 心跳检测间隔 (毫秒)
-const HEARTBEAT_INTERVAL = 5000;
-// 连续失败次数阈值
-const HEARTBEAT_FAIL_THRESHOLD = 2;
 // 上下文最大长度
 const MAX_CONTEXT_LENGTH = 4000;
 
-// 引擎切换事件
-export type EngineChangeEvent = {
-    from: LLMProviderType;
-    to: LLMProviderType;
-    reason: 'heartbeat' | 'manual';
-};
-
 export interface UseLLMReturn {
     // 状态
-    providerType: LLMProviderType;
     status: LLMStatus;
     modelName: string;
     loadProgress: LoadProgress | null;
     errorMessage: string | null;
 
-    // Ollama 相关
+    // Ollama 模型
     ollamaModels: OllamaModel[];
     selectedOllamaModel: string;
     setSelectedOllamaModel: (model: string) => void;
-
-    // WebLLM 相关
-    webllmModels: WebLLMModelInfo[];
-    selectedWebLLMModel: string;
-    setSelectedWebLLMModel: (modelId: string) => Promise<void>;
-    downloadedModels: Set<string>;  // 已下载的模型 ID 集合
-    deleteModel: (modelId: string) => Promise<void>;  // 删除模型缓存
 
     // 聊天相关
     messages: ChatMessage[];
@@ -73,16 +49,21 @@ export interface UseLLMReturn {
     sendMessage: (content: string) => Promise<void>;
     abortGeneration: () => void;
     clearMessages: () => void;
-    // 注入消息（不触发生成）
     injectMessage: (role: 'system' | 'user' | 'assistant', content: string) => void;
     setMessages: (messages: ChatMessage[]) => void;
     retryDetection: () => void;
     loadChatHistory: (filePath: string) => Promise<ChatMessage[]>;
-    unloadModel: () => void;  // 卸载模型释放内存
+    unloadModel: () => void;
 
-    // 事件
-    onEngineChange: (callback: (event: EngineChangeEvent) => void) => void;
+    // 模型管理
+    refreshModels: () => Promise<void>;
+    pullModel: (modelName: string) => Promise<void>;
+    deleteModel: (modelName: string) => Promise<void>;
+    downloadProgress: { model: string; output: string } | null;
 }
+
+// 导出推荐模型供UI使用
+export { RECOMMENDED_MODELS };
 
 // 生成唯一 ID
 function generateId(): string {
@@ -90,12 +71,10 @@ function generateId(): string {
 }
 
 export function useLLM(): UseLLMReturn {
-    // 获取用户设置中的自定义系统提示词
     const { settings } = useSettings();
     const customSystemPrompt = settings.customSystemPrompt;
 
-    // 提供者状态
-    const [providerType, setProviderType] = useState<LLMProviderType>('webllm');
+    // 状态
     const [status, setStatus] = useState<LLMStatus>('detecting');
     const [modelName, setModelName] = useState<string>('');
     const [loadProgress, setLoadProgress] = useState<LoadProgress | null>(null);
@@ -105,12 +84,8 @@ export function useLLM(): UseLLMReturn {
     const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
     const [selectedOllamaModel, setSelectedOllamaModel] = useState<string>('');
 
-    // WebLLM 模型状态
-    const [selectedWebLLMModel, setSelectedWebLLMModelState] = useState<string>(DEFAULT_WEBLLM_MODEL);
-    // 已下载的模型（内置模型默认已下载）
-    const [downloadedModels, setDownloadedModels] = useState<Set<string>>(
-        new Set([DEFAULT_WEBLLM_MODEL])
-    );
+    // 模型管理状态
+    const [downloadProgress, setDownloadProgress] = useState<{ model: string; output: string } | null>(null);
 
     // 聊天状态
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -123,52 +98,19 @@ export function useLLM(): UseLLMReturn {
     const [activeFileContent, setActiveFileContent] = useState<string | null>(null);
     const [activeFolderName, setActiveFolderName] = useState<string | null>(null);
     const [activeFolderFiles, setActiveFolderFiles] = useState<string[]>([]);
-    // 文件摘要 Map：文件名 -> 前 N 字内容
     const [filePreviews, setFilePreviews] = useState<Map<string, string>>(new Map());
-    // 当前聊天记录路径（文件路径或虚拟路径）
     const [activeChatPath, setActiveChatPath] = useState<string | null>(null);
-    // 会话内存缓存：存储虚拟路径（文件夹/根目录）的聊天记录，重启后清空
     const sessionChatCache = useRef<Map<string, ChatMessage[]>>(new Map());
 
     // 服务引用
     const ollamaServiceRef = useRef<OllamaService | null>(null);
-    const webllmServiceRef = useRef<WebLLMService | null>(null);
 
-    // 心跳检测引用
-    const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
-    const heartbeatFailCountRef = useRef(0);
-
-    // 使用 ref 跟踪最新状态（解决闭包问题）
-    const providerTypeRef = useRef<LLMProviderType>(providerType);
-    const statusRef = useRef<LLMStatus>(status);
-
-    // 同步状态到 ref
+    // 监听下载进度
     useEffect(() => {
-        providerTypeRef.current = providerType;
-    }, [providerType]);
-
-    useEffect(() => {
-        statusRef.current = status;
-    }, [status]);
-
-    // 引擎切换回调
-    const engineChangeCallbackRef = useRef<((event: EngineChangeEvent) => void) | null>(null);
-
-    /**
-     * 注册引擎切换回调
-     */
-    const onEngineChange = useCallback((callback: (event: EngineChangeEvent) => void) => {
-        engineChangeCallbackRef.current = callback;
-    }, []);
-
-    /**
-     * 触发引擎切换事件
-     */
-    const emitEngineChange = useCallback((event: EngineChangeEvent) => {
-        console.log('🔄 引擎切换:', event.from, '->', event.to);
-        if (engineChangeCallbackRef.current) {
-            engineChangeCallbackRef.current(event);
-        }
+        if (!window.ollama) return;
+        return window.ollama.onPullProgress((data) => {
+            setDownloadProgress(data);
+        });
     }, []);
 
     /**
@@ -183,7 +125,6 @@ export function useLLM(): UseLLMReturn {
         setActiveFilePath(path);
         setActiveFileName(name);
         setActiveFileContent(content);
-        // 清空文件夹上下文
         setActiveFolderName(null);
         setActiveFolderFiles([]);
     }, []);
@@ -196,45 +137,83 @@ export function useLLM(): UseLLMReturn {
         files: string[],
         previews?: Map<string, string>
     ) => {
-        // 调用此函数即表示选中了文件夹（包括空文件夹和根目录）
         setContextType('folder');
         setActiveFolderName(name);
         setActiveFolderFiles(files);
         setFilePreviews(previews || new Map());
-        // 清空文件上下文
         setActiveFilePath(null);
         setActiveFileName(null);
         setActiveFileContent(null);
     }, []);
 
     /**
-     * 初始化 WebLLM
+     * 刷新已安装模型列表
      */
-    const initializeWebLLM = useCallback(async () => {
-        console.log('🔵 初始化 WebLLM...');
-        setProviderType('webllm');
-        setModelName(DEFAULT_WEBLLM_MODEL);
-        setStatus('loading');
-
-        const webllmService = new WebLLMService();
-
-        webllmService.setProgressCallback((progress) => {
-            setLoadProgress(progress);
-        });
-
+    const refreshModels = useCallback(async () => {
+        if (!window.ollama) return;
         try {
-            await webllmService.initialize();
-            webllmServiceRef.current = webllmService;
-            setStatus('ready');
-            setLoadProgress(null);
-            console.log('✅ WebLLM 初始化成功');
-        } catch (error) {
-            console.error('❌ WebLLM 初始化失败:', error);
-            const errMsg = error instanceof Error ? error.message : '未知错误';
-            setErrorMessage(`WebLLM 初始化失败: ${errMsg}`);
-            setStatus('error');
+            const result = await window.ollama.listModels();
+            if (result && result.success && Array.isArray(result.models)) {
+                const mappedModels: OllamaModel[] = result.models.map((m: any) => ({
+                    name: m.name,
+                    size: parseInt(m.size) || 0,
+                    digest: m.id,
+                    modified_at: m.modified,
+                    formattedSize: m.size
+                }));
+                setOllamaModels(mappedModels);
+                console.log('📦 已安装模型列表:', mappedModels.map(m => m.name));
+            }
+        } catch (e) {
+            console.error('刷新模型列表失败:', e);
         }
     }, []);
+
+    /**
+     * 下载模型
+     */
+    const pullModel = useCallback(async (modelName: string) => {
+        if (!window.ollama) return;
+
+        setDownloadProgress({ model: modelName, output: '开始下载...' });
+
+        try {
+            const result = await window.ollama.pullModel(modelName);
+            if (result.success) {
+                console.log(`✅ 模型 ${modelName} 下载成功`);
+                await refreshModels();
+                setDownloadProgress(null);
+            } else {
+                throw new Error(result.output || '下载失败');
+            }
+        } catch (error) {
+            console.error(`❌ 模型 ${modelName} 下载失败:`, error);
+            setDownloadProgress(null);
+            setErrorMessage(`下载失败: ${error instanceof Error ? error.message : String(error)}`);
+            setTimeout(() => setErrorMessage(null), 3000);
+        }
+    }, [refreshModels]);
+
+    /**
+     * 删除模型
+     */
+    const deleteModel = useCallback(async (modelName: string) => {
+        if (!window.ollama) return;
+        if (!confirm(`确定要删除模型 ${modelName} 吗？`)) return;
+
+        try {
+            const result = await window.ollama.deleteModel(modelName);
+            if (result.success) {
+                console.log(`🗑️ 模型 ${modelName} 删除成功`);
+                await refreshModels();
+                if (modelName === selectedOllamaModel) {
+                    setSelectedOllamaModel(ollamaModels[0]?.name || '');
+                }
+            }
+        } catch (error) {
+            console.error(`❌ 模型 ${modelName} 删除失败:`, error);
+        }
+    }, [refreshModels, selectedOllamaModel, ollamaModels]);
 
     /**
      * 初始化 Ollama
@@ -243,7 +222,6 @@ export function useLLM(): UseLLMReturn {
         console.log('🟢 初始化 Ollama...');
         setOllamaModels(models);
         setSelectedOllamaModel(models[0].name);
-        setProviderType('ollama');
         setModelName(models[0].name);
 
         const ollamaService = new OllamaService(models[0].name);
@@ -254,361 +232,144 @@ export function useLLM(): UseLLMReturn {
             console.log('✅ Ollama 初始化成功');
         } catch (error) {
             console.error('❌ Ollama 初始化失败:', error);
-            throw error;
+            setErrorMessage('Ollama 初始化失败');
+            setStatus('error');
         }
     }, []);
 
     /**
-     * 心跳检测 - 实时监测 Ollama 状态
-     */
-    const startHeartbeat = useCallback(() => {
-        if (heartbeatRef.current) {
-            clearInterval(heartbeatRef.current);
-        }
-
-        console.log('💓 启动心跳检测 (每 5 秒)');
-
-        heartbeatRef.current = setInterval(async () => {
-            const models = await OllamaService.detect();
-            const currentProvider = providerTypeRef.current;
-            const currentStatus = statusRef.current;
-
-            console.log(`💓 心跳: provider=${currentProvider}, status=${currentStatus}, ollama=${models ? 'online' : 'offline'}`);
-
-            if (models && models.length > 0) {
-                // Ollama 在线
-                heartbeatFailCountRef.current = 0;
-
-                if (currentProvider === 'webllm' && currentStatus === 'ready') {
-                    // 从 WebLLM 切换到 Ollama
-                    console.log('💚 检测到 Ollama，自动切换...');
-
-                    // 停止 WebLLM
-                    if (webllmServiceRef.current) {
-                        webllmServiceRef.current.destroy();
-                        webllmServiceRef.current = null;
-                    }
-
-                    try {
-                        await initializeOllama(models);
-                        emitEngineChange({ from: 'webllm', to: 'ollama', reason: 'heartbeat' });
-                    } catch (e) {
-                        console.error('切换到 Ollama 失败:', e);
-                    }
-                }
-            } else {
-                // Ollama 离线
-                heartbeatFailCountRef.current++;
-                console.log(`💔 Ollama 离线, 失败次数: ${heartbeatFailCountRef.current}`);
-
-                if (currentProvider === 'ollama' && heartbeatFailCountRef.current >= HEARTBEAT_FAIL_THRESHOLD) {
-                    // 从 Ollama 切换到 WebLLM
-                    console.log('💔 Ollama 持续离线，自动降级到 WebLLM...');
-
-                    ollamaServiceRef.current = null;
-                    emitEngineChange({ from: 'ollama', to: 'webllm', reason: 'heartbeat' });
-
-                    await initializeWebLLM();
-                    heartbeatFailCountRef.current = 0;
-                }
-            }
-        }, HEARTBEAT_INTERVAL);
-    }, [initializeOllama, initializeWebLLM, emitEngineChange]);
-
-    /**
-     * 扫描已缓存的 WebLLM 模型
-     * 改进检测：基于文件大小验证下载完整性
-     * 只有当缓存文件的总大小达到预期大小的 80% 以上时,才认为模型已下载
-     */
-    const scanCachedModels = useCallback(async () => {
-        try {
-            const cacheNames = await caches.keys();
-            const modelCacheInfo = new Map<string, {
-                count: number;
-                hasConfig: boolean;
-                hasWasm: boolean;
-                totalSize: number;  // 缓存文件总大小(字节)
-            }>();
-
-            // 初始化
-            for (const model of WEBLLM_MODELS) {
-                modelCacheInfo.set(model.id, {
-                    count: 0,
-                    hasConfig: false,
-                    hasWasm: false,
-                    totalSize: 0
-                });
-            }
-
-            // 遍历所有缓存
-            for (const cacheName of cacheNames) {
-                const cache = await caches.open(cacheName);
-                const requests = await cache.keys();
-
-                for (const request of requests) {
-                    const url = request.url.toLowerCase();
-
-                    for (const model of WEBLLM_MODELS) {
-                        const modelIdLower = model.id.toLowerCase();
-                        const modelIdVariant = model.id.replace(/-/g, '_').toLowerCase();
-                        const modelNamePart = model.id.split('-')[0].toLowerCase();
-
-                        if (url.includes(modelIdLower) ||
-                            url.includes(modelIdVariant) ||
-                            (modelNamePart.length > 4 && url.includes(modelNamePart))) {
-
-                            const info = modelCacheInfo.get(model.id)!;
-                            info.count++;
-
-                            // 检查文件类型
-                            if (url.includes('config.json')) info.hasConfig = true;
-                            if (url.includes('.wasm')) info.hasWasm = true;
-
-                            // 获取文件大小
-                            try {
-                                const response = await cache.match(request);
-                                if (response) {
-                                    const blob = await response.blob();
-                                    info.totalSize += blob.size;
-                                }
-                            } catch (e) {
-                                console.warn('无法获取文件大小:', url, e);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 判断完整性
-            const completeModels = new Set<string>();
-
-            modelCacheInfo.forEach((info, modelId) => {
-                const modelConfig = WEBLLM_MODELS.find(m => m.id === modelId);
-                if (!modelConfig) return;
-
-                const isBuiltin = modelId === DEFAULT_WEBLLM_MODEL;
-
-                if (isBuiltin) {
-                    // 内置模型默认视为已下载
-                    completeModels.add(modelId);
-                    console.log(`✅ 内置模型 ${modelId} 已加载`);
-                } else {
-                    // 计算实际大小(MB)
-                    const actualSizeMB = info.totalSize / (1024 * 1024);
-                    const expectedSizeMB = modelConfig.expectedSize;
-
-                    // 最小大小阈值: 预期大小的 80%
-                    const MIN_SIZE_RATIO = 0.8;
-                    const minRequiredSizeMB = expectedSizeMB * MIN_SIZE_RATIO;
-
-                    // 验证条件:
-                    // 1. 必须有 config.json
-                    // 2. 文件总大小必须达到预期大小的 80% 以上
-                    if (info.hasConfig && actualSizeMB >= minRequiredSizeMB) {
-                        completeModels.add(modelId);
-                        console.log(`✅ 模型 ${modelId} 下载完整: ${actualSizeMB.toFixed(0)}MB / ${expectedSizeMB}MB (${info.count} 个文件)`);
-                    } else if (info.count > 0) {
-                        console.log(`⚠️ 模型 ${modelId} 下载不完整: ${actualSizeMB.toFixed(0)}MB / ${expectedSizeMB}MB (需要至少 ${minRequiredSizeMB.toFixed(0)}MB, hasConfig=${info.hasConfig})`);
-                    }
-                }
-            });
-
-            if (completeModels.size > 0) {
-                setDownloadedModels(completeModels);
-            }
-        } catch (error) {
-            console.log('缓存扫描失败:', error);
-        }
-    }, []);
-
-
-
-    /**
-     * 检测并初始化 LLM 引擎
+     * 检测并初始化
      */
     const detectAndInitialize = useCallback(async () => {
-        console.log('🔍 开始检测 LLM 引擎...');
+        console.log('🔍 开始检测 Ollama 引擎...');
         setStatus('detecting');
         setLoadProgress(null);
         setErrorMessage(null);
 
-        // 先扫描已缓存的模型
-        await scanCachedModels();
+        // 尝试 HTTP 检测
+        const httpModels = await OllamaService.detect();
 
-        const models = await OllamaService.detect();
-
-        if (models && models.length > 0) {
-            console.log('✅ Ollama Detected: YES');
-            console.log(`📋 可用模型: ${models.map(m => m.name).join(', ')}`);
-
+        // 尝试 IPC 获取模型列表
+        let models: OllamaModel[] = [];
+        if (window.ollama) {
             try {
-                await initializeOllama(models);
-            } catch {
-                console.log('⚠️ Ollama 初始化失败，降级到 WebLLM');
-                await initializeWebLLM();
+                const listResult = await window.ollama.listModels();
+                if (listResult && listResult.success && Array.isArray(listResult.models)) {
+                    models = listResult.models.map((m: any) => ({
+                        name: m.name,
+                        size: 0,
+                        digest: m.id,
+                        modified_at: m.modified,
+                        formattedSize: m.size
+                    }));
+                }
+            } catch (e) {
+                console.log('IPC listModels 失败:', e);
             }
-        } else {
-            console.log('⚠️ Ollama Detected: NO, 使用 WebLLM');
-            await initializeWebLLM();
         }
 
-        // 启动心跳检测
-        startHeartbeat();
-    }, [initializeOllama, initializeWebLLM, startHeartbeat, scanCachedModels]);
+        // 合并结果
+        if (models.length === 0 && httpModels) {
+            models = httpModels;
+        }
+
+        if (models.length > 0) {
+            console.log('✅ Ollama 检测成功，模型数:', models.length);
+            await initializeOllama(models);
+        } else {
+            console.log('⚠️ 未检测到 Ollama 服务或模型');
+            setErrorMessage('未检测到 Ollama 服务。请确保应用已正确启动。');
+            setStatus('error');
+        }
+    }, [initializeOllama]);
 
     /**
-     * 根据模型类型和用户设置获取合适的系统提示词
+     * 获取系统提示词
      */
     const getSystemPrompt = useCallback(() => {
-        // 基础提示词：Ollama 大模型用完整版，WebLLM 微型模型用精简版
-        const basePrompt = providerType === 'ollama' ? SYSTEM_PROMPT_FULL : SYSTEM_PROMPT_LITE;
-
-        // 如果用户设置了自定义提示词，将其前置
         if (customSystemPrompt && customSystemPrompt.trim()) {
-            return `${customSystemPrompt.trim()}\n\n${basePrompt}`;
+            return `${customSystemPrompt.trim()}\n\n${SYSTEM_PROMPT}`;
         }
-
-        return basePrompt;
-    }, [providerType, customSystemPrompt]);
+        return SYSTEM_PROMPT;
+    }, [customSystemPrompt]);
 
     /**
-     * 构建上下文信息（不包含系统提示词）
+     * 构建上下文信息
      */
     const buildContextInfo = useCallback((): string | null => {
-        const isLiteMode = providerType === 'webllm';
-
-        // 文件上下文
         if (activeFileContent && activeFileName) {
             const truncatedContent = activeFileContent.slice(0, MAX_CONTEXT_LENGTH);
             const isTruncated = activeFileContent.length > MAX_CONTEXT_LENGTH;
-
-            if (isLiteMode) {
-                return `文章「${activeFileName}」:
-"""
-${truncatedContent}${isTruncated ? '\n...' : ''}
-"""`;
-            } else {
-                return `【当前状态】用户正在编辑文章「${activeFileName}」
-【你的角色】专注于这篇文章的写作助手
+            return `【当前状态】用户正在编辑文章「${activeFileName}」
 
 文章内容:
 """
 ${truncatedContent}${isTruncated ? '\n... (内容已截断)' : ''}
 """`;
-            }
         }
 
-        // 子文件夹上下文
         if (activeFolderName && activeFolderFiles.length > 0) {
-            const limit = isLiteMode ? 10 : 20;
-            const filesToShow = activeFolderFiles.slice(0, limit);
-            const hasMore = activeFolderFiles.length > limit;
-
-            // 构建文件列表（带摘要）
+            const filesToShow = activeFolderFiles.slice(0, 20);
+            const hasMore = activeFolderFiles.length > 20;
             const fileListWithPreviews = filesToShow.map((f, i) => {
                 const preview = filePreviews.get(f);
                 return preview ? `${i + 1}. ${f}：${preview}` : `${i + 1}. ${f}`;
             }).join('\n');
 
-            if (isLiteMode) {
-                return `【你能看到的文件】文件夹「${activeFolderName}」共 ${activeFolderFiles.length} 个文件：
-${fileListWithPreviews}${hasMore ? '\n...' : ''}`;
-            } else {
-                return `【当前状态】用户正在浏览文件夹「${activeFolderName}」
-【你能看到的文件】共 ${activeFolderFiles.length} 个：
+            return `【当前状态】用户正在浏览文件夹「${activeFolderName}」
+【文件列表】共 ${activeFolderFiles.length} 个：
 ${fileListWithPreviews}${hasMore ? '\n... (更多文件)' : ''}`;
-            }
         }
 
-        // 根目录上下文
         if (activeFolderFiles.length > 0) {
-            const limit = isLiteMode ? 15 : 30;
-            const filesToShow = activeFolderFiles.slice(0, limit);
-            const hasMore = activeFolderFiles.length > limit;
-
-            // 构建文件列表（带摘要）
+            const filesToShow = activeFolderFiles.slice(0, 30);
+            const hasMore = activeFolderFiles.length > 30;
             const fileListWithPreviews = filesToShow.map((f, i) => {
                 const preview = filePreviews.get(f);
                 return preview ? `${i + 1}. ${f}：${preview}` : `${i + 1}. ${f}`;
             }).join('\n');
 
-            if (isLiteMode) {
-                return `【你能看到的文件】笔记库共 ${activeFolderFiles.length} 篇文章：
-${fileListWithPreviews}${hasMore ? '\n...' : ''}`;
-            } else {
-                return `【当前状态】用户正在查看全部笔记（根目录）
-【你能看到的文件】共 ${activeFolderFiles.length} 篇文章：
+            return `【当前状态】用户正在查看全部笔记（根目录）
+【文件列表】共 ${activeFolderFiles.length} 篇：
 ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
-            }
         }
-
 
         return null;
-    }, [activeFileContent, activeFileName, activeFolderName, activeFolderFiles, filePreviews, providerType]);
+    }, [activeFileContent, activeFileName, activeFolderName, activeFolderFiles, filePreviews]);
 
     /**
-     * 从用户消息中搜索匹配的文件
-     * 只在用户有明确搜索意图时触发
+     * 搜索文件
      */
     const searchFiles = useCallback((userMessage: string): string | null => {
         if (filePreviews.size === 0) return null;
 
-        // 判断是否有搜索意图（包含搜索相关词汇）
-        const searchIntentWords = [
-            '有没有', '有什么', '有啥', '关于', '找', '搜索', '搜', '查',
-            '在哪', '哪里', '哪个', '哪些', '什么文件', '什么文章', '什么笔记'
-        ];
+        const searchIntentWords = ['有没有', '有什么', '关于', '找', '搜索', '查', '哪里', '哪个', '哪些'];
         const hasSearchIntent = searchIntentWords.some(word => userMessage.includes(word));
-
-        // 没有搜索意图，不执行搜索
         if (!hasSearchIntent) return null;
 
-        // 提取关键词（去掉无意义词）
-        const stopWords = [
-            '有没有', '有什么', '有啥', '关于', '的', '吗', '呢', '啊', '了',
-            '文章', '文件', '笔记', '是', '找', '搜索', '搜', '查', '看看',
-            '帮我', '帮忙', '给我', '我要', '我想', '能不能', '可以', '请',
-            '找找', '找一下', '查一下', '看一下', '在哪', '哪里', '什么', '哪个', '哪些'
-        ];
+        const stopWords = ['有没有', '有什么', '关于', '的', '吗', '呢', '文章', '文件', '找', '搜索'];
         let query = userMessage;
         stopWords.forEach(word => {
             query = query.replace(new RegExp(word, 'g'), '');
         });
         query = query.trim();
-
-        // 关键词太短或为空，不搜索
         if (!query || query.length < 2) return null;
 
-        // 在文件名和摘要中搜索
-        const matches: Array<{ name: string, preview: string, location: string }> = [];
-
-        // 获取当前位置描述
-        const currentLocation = activeFolderName ? `文件夹「${activeFolderName}」` : '根目录';
-
+        const matches: Array<{ name: string, preview: string }> = [];
         filePreviews.forEach((preview, name) => {
-            // 文件名或摘要包含关键词
             if (name.includes(query) || preview.includes(query)) {
-                matches.push({ name, preview, location: currentLocation });
-            }
-        });
-
-        // 也在 activeFolderFiles 中搜索（文件名）
-        activeFolderFiles.forEach(name => {
-            if (name.includes(query) && !matches.find(m => m.name === name)) {
-                const preview = filePreviews.get(name) || '';
-                matches.push({ name, preview, location: currentLocation });
+                matches.push({ name, preview });
             }
         });
 
         if (matches.length === 0) return null;
 
-        // 构建搜索结果（含位置）
         const resultList = matches.slice(0, 5).map((m, i) =>
-            `${i + 1}. ${m.name}（位置：${m.location}）${m.preview ? `\n   摘要：${m.preview}` : ''}`
+            `${i + 1}. ${m.name}${m.preview ? `\n   摘要：${m.preview}` : ''}`
         ).join('\n');
 
         return `【搜索结果】"${query}"匹配到 ${matches.length} 个文件：\n${resultList}`;
-    }, [filePreviews, activeFolderFiles, activeFolderName]);
+    }, [filePreviews]);
 
     /**
      * 发送消息
@@ -616,11 +377,10 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
     const sendMessage = useCallback(async (content: string) => {
         if (!content.trim() || isGenerating) return;
         if (status !== 'ready') {
-            console.warn('⚠️ LLM 服务未就绪');
+            console.warn('⚠️ Ollama 服务未就绪');
             return;
         }
 
-        // 添加用户消息
         const userMessage: ChatMessage = {
             id: generateId(),
             role: 'user',
@@ -628,7 +388,6 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
             timestamp: Date.now()
         };
 
-        // 添加空的助手消息
         const assistantMessage: ChatMessage = {
             id: generateId(),
             role: 'assistant',
@@ -641,34 +400,21 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
         setMessages(newMessages);
         setIsGenerating(true);
 
-        // 构建发送给 LLM 的消息数组
+        // 构建 LLM 消息
         const llmMessages: LLMMessage[] = [];
-
-        // 1. 添加系统提示词 + 上下文信息（合并为一条 system 消息）
         const contextInfo = buildContextInfo();
-
-        // 2. 执行前端搜索
         const searchResult = searchFiles(content.trim());
 
-        // 3. 合并系统内容
         let systemContent = getSystemPrompt();
-        if (contextInfo) {
-            systemContent += '\n\n' + contextInfo;
-        }
-        if (searchResult) {
-            systemContent += '\n\n' + searchResult;
-        }
+        if (contextInfo) systemContent += '\n\n' + contextInfo;
+        if (searchResult) systemContent += '\n\n' + searchResult;
         llmMessages.push({ role: 'system', content: systemContent });
 
-        // 4. 添加历史消息
         messages.forEach(m => {
             llmMessages.push({ role: m.role, content: m.content });
         });
-
-        // 3. 添加当前用户消息
         llmMessages.push({ role: 'user', content: content.trim() });
 
-        // 流式回调
         const onToken = (token: string) => {
             setMessages(prev => {
                 const updated = [...prev];
@@ -684,9 +430,7 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
             setMessages(prev => {
                 const updated = [...prev];
                 const lastMsg = updated[updated.length - 1];
-                if (lastMsg) {
-                    lastMsg.isStreaming = false;
-                }
+                if (lastMsg) lastMsg.isStreaming = false;
                 return updated;
             });
             setIsGenerating(false);
@@ -696,16 +440,11 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
                 const finalMessages = [...newMessages];
                 finalMessages[finalMessages.length - 1].isStreaming = false;
 
-                const isVirtualPath = activeChatPath.startsWith('__');
-                if (isVirtualPath) {
-                    // 虚拟路径：保存到内存缓存（重启后清空）
+                if (activeChatPath.startsWith('__')) {
                     sessionChatCache.current.set(activeChatPath, finalMessages);
-                    console.log(`💾 会话缓存已更新 [${activeChatPath}]`);
                 } else if (window.chat) {
-                    // 真实文件路径：持久化到磁盘
                     try {
                         await window.chat.save(activeChatPath, finalMessages);
-                        console.log(`💾 聊天记录已保存 [${activeChatPath}]`);
                     } catch (error) {
                         console.error('保存聊天记录失败:', error);
                     }
@@ -727,45 +466,33 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
             setIsGenerating(false);
         };
 
-        // 调用对应服务
         try {
-            if (providerType === 'ollama' && ollamaServiceRef.current) {
+            if (ollamaServiceRef.current) {
                 await ollamaServiceRef.current.streamChat(llmMessages, onToken, onComplete, onError);
-            } else if (providerType === 'webllm' && webllmServiceRef.current) {
-                await webllmServiceRef.current.streamChat(llmMessages, onToken, onComplete, onError);
             } else {
-                throw new Error('没有可用的 LLM 服务');
+                throw new Error('Ollama 服务未初始化');
             }
         } catch (error) {
             onError(error instanceof Error ? error : new Error('未知错误'));
         }
-    }, [messages, isGenerating, status, providerType, activeChatPath, buildContextInfo, getSystemPrompt, searchFiles]);
+    }, [messages, isGenerating, status, activeChatPath, buildContextInfo, getSystemPrompt, searchFiles]);
 
     /**
      * 加载聊天历史
-     * - 虚拟路径（__folder__/xxx 或 __root__）：从内存缓存加载
-     * - 真实文件路径：从磁盘加载
      */
     const loadChatHistory = useCallback(async (chatPath: string): Promise<ChatMessage[]> => {
-        // 保存当前聊天路径（用于后续自动保存）
         setActiveChatPath(chatPath);
 
-        const isVirtualPath = chatPath.startsWith('__');
-
-        if (isVirtualPath) {
-            // 虚拟路径：从内存缓存加载
+        if (chatPath.startsWith('__')) {
             const cached = sessionChatCache.current.get(chatPath) || [];
             setMessages(cached);
-            console.log(`📂 加载会话缓存 [${chatPath}]: ${cached.length} 条消息`);
             return cached;
         }
 
-        // 真实文件路径：从磁盘加载
         if (!window.chat) return [];
         try {
             const history = await window.chat.load(chatPath) as ChatMessage[];
             setMessages(history || []);
-            console.log(`📂 加载聊天记录 [${chatPath}]: ${history?.length || 0} 条消息`);
             return history || [];
         } catch (error) {
             console.error('加载聊天记录失败:', error);
@@ -778,13 +505,11 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
      * 中止生成
      */
     const abortGeneration = useCallback(() => {
-        if (providerType === 'ollama' && ollamaServiceRef.current) {
+        if (ollamaServiceRef.current) {
             ollamaServiceRef.current.abort();
-        } else if (providerType === 'webllm' && webllmServiceRef.current) {
-            webllmServiceRef.current.abort();
         }
         setIsGenerating(false);
-    }, [providerType]);
+    }, []);
 
     /**
      * 清空消息
@@ -806,43 +531,23 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
     const handleSetSelectedOllamaModel = useCallback((model: string) => {
         setSelectedOllamaModel(model);
         setModelName(model);
-
         if (ollamaServiceRef.current) {
             ollamaServiceRef.current.setModel(model);
         }
     }, []);
 
     /**
-     * 卸载模型释放内存（专注模式使用）
+     * 卸载模型
      */
     const unloadModel = useCallback(() => {
-        console.log('📤 卸载语言模型释放内存...');
-
-        // 停止心跳
-        if (heartbeatRef.current) {
-            clearInterval(heartbeatRef.current);
-            heartbeatRef.current = null;
-        }
-
-        // 销毁 WebLLM 服务
-        if (webllmServiceRef.current) {
-            webllmServiceRef.current.destroy();
-            webllmServiceRef.current = null;
-        }
-
-        // 清空 Ollama 服务引用
+        console.log('📤 卸载 Ollama 模型...');
         ollamaServiceRef.current = null;
-
-        // 重置状态
         setStatus('detecting');
         setModelName('');
-        setProviderType('webllm');
-
-        console.log('✅ 语言模型已卸载');
     }, []);
 
     /**
-     * 注入消息（不触发生成）
+     * 注入消息
      */
     const injectMessage = useCallback((role: 'system' | 'user' | 'assistant', content: string) => {
         const newMessage: ChatMessage = {
@@ -854,129 +559,12 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
         setMessages(prev => [...prev, newMessage]);
     }, []);
 
-    /**
-     * 切换 WebLLM 模型
-     */
-    const setSelectedWebLLMModel = useCallback(async (modelId: string) => {
-        if (modelId === selectedWebLLMModel) return;
-
-        console.log('🔄 切换 WebLLM 模型:', modelId);
-        setSelectedWebLLMModelState(modelId);
-
-        // 如果当前是 WebLLM 提供者，重新加载模型
-        if (providerType === 'webllm') {
-            // 销毁旧服务
-            if (webllmServiceRef.current) {
-                webllmServiceRef.current.destroy();
-                webllmServiceRef.current = null;
-            }
-
-            setStatus('loading');
-            setModelName(modelId);
-
-            const webllmService = new WebLLMService(modelId);
-            webllmService.setProgressCallback((progress) => {
-                setLoadProgress(progress);
-            });
-
-            try {
-                await webllmService.initialize();
-                webllmServiceRef.current = webllmService;
-                setStatus('ready');
-                setLoadProgress(null);
-                // 标记模型为已下载
-                setDownloadedModels(prev => new Set([...prev, modelId]));
-                console.log('✅ WebLLM 模型切换成功:', modelId);
-            } catch (error) {
-                console.error('❌ WebLLM 模型切换失败:', error);
-                const errMsg = error instanceof Error ? error.message : '未知错误';
-                setErrorMessage(`模型加载失败: ${errMsg}`);
-                setStatus('error');
-            }
-        }
-    }, [selectedWebLLMModel, providerType]);
-
-    /**
-     * 删除模型缓存
-     */
-    /**
-     * 删除模型缓存
-     * 改进：支持删除整个 Cache 库，并清理所有变体 URL
-     */
-    const deleteModel = useCallback(async (modelId: string) => {
-        if (modelId === selectedWebLLMModel) {
-            console.warn('⚠️ 不能删除当前使用的模型');
-            return;
-        }
-
-        console.log('🗑️ 删除模型缓存:', modelId);
-
-        try {
-            const idVariants = [
-                modelId.toLowerCase(),
-                modelId.replace(/-/g, '_').toLowerCase(),
-                modelId.replace(/-/g, '').toLowerCase()
-            ];
-
-            const cacheNames = await caches.keys();
-            let deletedCount = 0;
-
-            for (const name of cacheNames) {
-                const nameLower = name.toLowerCase();
-                // 如果 Cache 名称直接包含模型 ID，直接删除整个 Cache
-                if (idVariants.some(v => nameLower.includes(v))) {
-                    await caches.delete(name);
-                    console.log(`🗑️ 删除整个缓存库: ${name}`);
-                    deletedCount++;
-                    continue;
-                }
-
-                // 否则遍历条目删除
-                const cache = await caches.open(name);
-                const keys = await cache.keys();
-                for (const key of keys) {
-                    const url = key.url.toLowerCase();
-                    if (idVariants.some(v => url.includes(v))) {
-                        await cache.delete(key);
-                        deletedCount++;
-                        console.log('  删除缓存条目:', key.url);
-                    }
-                }
-            }
-
-            console.log(`✅ 已删除模型 ${modelId} (涉及 ${deletedCount} 个缓存位置)`);
-
-            // 更新状态
-            setDownloadedModels(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(modelId);
-                return newSet;
-            });
-
-            // 重新扫描以确认
-            setTimeout(scanCachedModels, 500);
-
-        } catch (error) {
-            console.error('❌ 删除模型失败:', error);
-        }
-    }, [selectedWebLLMModel, scanCachedModels]);
-
     // 启动时检测
     useEffect(() => {
         detectAndInitialize();
-
-        return () => {
-            if (heartbeatRef.current) {
-                clearInterval(heartbeatRef.current);
-            }
-            if (webllmServiceRef.current) {
-                webllmServiceRef.current.destroy();
-            }
-        };
-    }, []);
+    }, [detectAndInitialize]);
 
     return {
-        providerType,
         status,
         modelName,
         loadProgress,
@@ -984,12 +572,6 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
         ollamaModels,
         selectedOllamaModel,
         setSelectedOllamaModel: handleSetSelectedOllamaModel,
-        // WebLLM 模型
-        webllmModels: WEBLLM_MODELS,
-        selectedWebLLMModel,
-        setSelectedWebLLMModel,
-        downloadedModels,
-        deleteModel,
         messages,
         isGenerating,
         contextType,
@@ -1003,12 +585,15 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
         sendMessage,
         abortGeneration,
         clearMessages,
-        injectMessage,   // 导出注入方法
+        injectMessage,
         setMessages,
         retryDetection,
         loadChatHistory,
         unloadModel,
-        onEngineChange
+        refreshModels,
+        pullModel,
+        deleteModel,
+        downloadProgress
     };
 }
 

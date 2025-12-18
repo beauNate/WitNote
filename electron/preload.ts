@@ -111,4 +111,26 @@ contextBridge.exposeInMainWorld('settings', {
         ipcRenderer.invoke('settings:reset')
 })
 
+// 暴露 Ollama API
+contextBridge.exposeInMainWorld('ollama', {
+    openModelsFolder: (): Promise<string> =>
+        ipcRenderer.invoke('ollama:openModelsFolder'),
+
+    listModels: (): Promise<{ success: boolean; models: Array<{ name: string; id: string; size: string; modified: string }> }> =>
+        ipcRenderer.invoke('ollama:listModels'),
+
+    pullModel: (modelName: string): Promise<{ success: boolean; output: string }> =>
+        ipcRenderer.invoke('ollama:pullModel', modelName),
+
+    deleteModel: (modelName: string): Promise<{ success: boolean }> =>
+        ipcRenderer.invoke('ollama:deleteModel', modelName),
+
+    onPullProgress: (callback: (data: { model: string; output: string }) => void): (() => void) => {
+        const handler = (_event: Electron.IpcRendererEvent, data: { model: string; output: string }) => callback(data)
+        ipcRenderer.on('ollama:pullProgress', handler)
+        return () => ipcRenderer.removeListener('ollama:pullProgress', handler)
+    }
+})
+
 console.log('🔗 Preload 脚本已加载')
+

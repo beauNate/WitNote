@@ -1,7 +1,6 @@
 /**
  * Settings 设置面板组件
- * macOS 风格的全屏设置面板，包含外观、AI 引擎、角色设定、使用说明四个 Tab
- * 支持国际化 (i18n)
+ * macOS 风格的全屏设置面板，Ollama-only 架构
  */
 
 import { useState, useEffect } from 'react';
@@ -12,27 +11,30 @@ import {
     Bot,
     MessageSquare,
     HelpCircle,
-    ExternalLink,
     Sun,
     Moon,
     Coffee,
-    Check,
-    AlertCircle,
     Loader2,
     RotateCcw,
-    Globe
+    Globe,
+    FolderOpen,
+    Trash2,
+    Check,
+    Download
 } from 'lucide-react';
 import { useSettings, AppSettings } from '../hooks/useSettings';
 import { changeLanguage, getCurrentLanguage } from '../i18n';
+import { UseLLMReturn, RECOMMENDED_MODELS } from '../hooks/useLLM';
 
 type TabType = 'appearance' | 'ai' | 'persona' | 'guide';
 
 interface SettingsProps {
     isOpen: boolean;
     onClose: () => void;
+    llm?: UseLLMReturn;
 }
 
-export function Settings({ isOpen, onClose }: SettingsProps) {
+export function Settings({ isOpen, onClose, llm }: SettingsProps) {
     const { t, i18n } = useTranslation();
     const [activeTab, setActiveTab] = useState<TabType>('appearance');
     const {
@@ -40,25 +42,10 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
         isLoading,
         setSetting,
         setTheme,
-        setOllamaUrl,
-        testOllamaConnection,
         resetSettings
     } = useSettings();
 
-    // 当前语言状态
     const [currentLang, setCurrentLang] = useState(getCurrentLanguage());
-
-    // Ollama 连接测试状态
-    const [isTestingConnection, setIsTestingConnection] = useState(false);
-    const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
-
-    // 临时 URL 输入状态
-    const [tempOllamaUrl, setTempOllamaUrl] = useState(settings.ollamaBaseUrl);
-
-    // 同步 URL
-    useEffect(() => {
-        setTempOllamaUrl(settings.ollamaBaseUrl);
-    }, [settings.ollamaBaseUrl]);
 
     // ESC 关闭
     useEffect(() => {
@@ -84,26 +71,9 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
 
     if (!isOpen) return null;
 
-    // 切换语言
     const handleLanguageChange = (lang: 'en' | 'zh') => {
         changeLanguage(lang);
         setCurrentLang(lang);
-    };
-
-    // 测试 Ollama 连接
-    const handleTestConnection = async () => {
-        setIsTestingConnection(true);
-        setConnectionStatus('idle');
-
-        // 先保存 URL
-        await setOllamaUrl(tempOllamaUrl);
-
-        const success = await testOllamaConnection();
-        setConnectionStatus(success ? 'success' : 'error');
-        setIsTestingConnection(false);
-
-        // 3 秒后重置状态
-        setTimeout(() => setConnectionStatus('idle'), 3000);
     };
 
     // Tab 内容
@@ -226,57 +196,142 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
             case 'ai':
                 return (
                     <div className="settings-tab-content">
-                        {/* Ollama 配置 */}
-                        <div className="settings-section">
-                            <h3 className="settings-section-title">{t('settings.ollamaConfig')}</h3>
-                            <p className="settings-hint ollama-download-hint">
-                                {t('settings.ollamaHint')}{' '}
-                                <a
-                                    href="https://ollama.com"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="external-link"
-                                >
-                                    Ollama <ExternalLink size={12} />
-                                </a>
-                                {' '}{t('settings.ollamaHint2')}
-                            </p>
-                            <div className="settings-row">
-                                <label>{t('settings.apiUrl')}</label>
-                                <div className="ollama-url-input">
-                                    <input
-                                        type="text"
-                                        value={tempOllamaUrl}
-                                        onChange={(e) => setTempOllamaUrl(e.target.value)}
-                                        onBlur={() => setOllamaUrl(tempOllamaUrl)}
-                                        placeholder="http://localhost:11434"
-                                        className="settings-input"
-                                    />
-                                    <button
-                                        className={`test-connection-btn ${connectionStatus}`}
-                                        onClick={handleTestConnection}
-                                        disabled={isTestingConnection}
-                                    >
-                                        {isTestingConnection ? (
-                                            <Loader2 size={16} className="spin" />
-                                        ) : connectionStatus === 'success' ? (
-                                            <Check size={16} />
-                                        ) : connectionStatus === 'error' ? (
-                                            <AlertCircle size={16} />
-                                        ) : (
-                                            t('settings.testConnection')
-                                        )}
-                                    </button>
-                                </div>
+                        <h3 className="settings-section-title">{t('settings.aiModelManagement')}</h3>
+                        <p className="settings-hint ollama-download-hint">
+                            {t('settings.builtInModelHint')}
+                        </p>
+
+                        {/* 模型存储路径 */}
+                        <div className="settings-row">
+                            <label>{t('settings.modelStoragePath')}</label>
+                            <div
+                                className="model-path-display"
+                                onClick={() => window.ollama?.openModelsFolder()}
+                                title="点击打开目录"
+                            >
+                                <FolderOpen size={16} style={{ marginRight: 8 }} />
+                                <code className="path-code" style={{ flex: 1, cursor: 'pointer' }}>
+                                    {t('settings.clickToOpenModels')}
+                                </code>
                             </div>
                         </div>
+
+                        {/* 本地模型列表 */}
+                        {llm && (
+                            <>
+                                <div className="settings-section-subtitle" style={{ marginTop: 20 }}>
+                                    <h4>{t('settings.installedModels')}</h4>
+                                    <button className="icon-btn tiny" onClick={llm.refreshModels} title="刷新列表">
+                                        <RotateCcw size={14} />
+                                    </button>
+                                </div>
+                                <div className="models-list">
+                                    {llm.ollamaModels.length === 0 ? (
+                                        <div className="empty-state">{t('settings.noModelsInstalled')}</div>
+                                    ) : (
+                                        llm.ollamaModels.map(model => (
+                                            <div key={model.name} className="model-item">
+                                                <div className="model-info">
+                                                    <div className="model-name">
+                                                        {model.name}
+                                                        {model.name === llm.selectedOllamaModel && (
+                                                            <span className="current-badge">{t('settings.currentUsing')}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="model-meta">
+                                                        {model.formattedSize || ''} • {model.modified_at?.split('T')[0]}
+                                                    </div>
+                                                </div>
+                                                <div className="model-actions">
+                                                    {model.name !== llm.selectedOllamaModel && (
+                                                        <button
+                                                            className="text-btn"
+                                                            onClick={() => llm.setSelectedOllamaModel(model.name)}
+                                                        >
+                                                            {t('settings.useThis')}
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        className="icon-btn danger"
+                                                        onClick={() => llm.deleteModel(model.name)}
+                                                        title={t('settings.deleteModel')}
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                {/* 推荐模型 */}
+                                <h4 className="settings-section-subtitle" style={{ marginTop: 20 }}>
+                                    {t('settings.recommendedModels')}
+                                </h4>
+                                <div className="recommended-models">
+                                    {RECOMMENDED_MODELS.map(rec => {
+                                        const isInstalled = llm.ollamaModels.some(m =>
+                                            m.name.startsWith(rec.name.split(':')[0])
+                                        );
+                                        const isDownloading = llm.downloadProgress?.model === rec.name;
+
+                                        return (
+                                            <div key={rec.name} className="model-card">
+                                                <div className="model-header">
+                                                    <div className="model-title">{rec.name}</div>
+                                                    <div className="model-size">{rec.size}</div>
+                                                </div>
+                                                <div className="model-desc">{rec.description}</div>
+                                                <div className="model-footer">
+                                                    {isInstalled ? (
+                                                        <div className="status-installed">
+                                                            <Check size={14} />
+                                                            <span>{t('settings.installed')}</span>
+                                                        </div>
+                                                    ) : isDownloading ? (
+                                                        <div className="download-progress">
+                                                            <Loader2 size={14} className="spin" />
+                                                            <span className="progress-text">
+                                                                {llm.downloadProgress?.output.includes('%')
+                                                                    ? llm.downloadProgress.output.match(/(\d+)%/)?.[0]
+                                                                    : t('settings.downloading')}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            className="download-btn"
+                                                            onClick={() => llm.pullModel(rec.name)}
+                                                        >
+                                                            <Download size={14} />
+                                                            {t('settings.download')}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* 下载进度条 */}
+                                {llm.downloadProgress && (
+                                    <div className="global-download-status">
+                                        <div className="status-header">
+                                            <Loader2 size={14} className="spin" />
+                                            <span>正在下载 {llm.downloadProgress.model}...</span>
+                                        </div>
+                                        <div className="status-output">
+                                            {llm.downloadProgress.output}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
                 );
 
             case 'persona':
                 return (
                     <div className="settings-tab-content">
-                        {/* 系统提示词 */}
                         <div className="settings-section">
                             <h3 className="settings-section-title">{t('settings.customPrompt')}</h3>
                             <p className="settings-hint">
@@ -299,21 +354,15 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
             case 'guide':
                 return (
                     <div className="settings-tab-content guide-content">
-                        {/* 软件介绍 */}
                         <div className="settings-section">
                             <h3 className="settings-section-title">{t('guide.aboutTitle')}</h3>
                             <div className="guide-intro">
                                 <p className="guide-tagline">{t('guide.tagline')}</p>
-                                <p className="guide-description">
-                                    {t('guide.description')}
-                                </p>
-                                <p className="guide-platform">
-                                    {t('guide.platform')}
-                                </p>
+                                <p className="guide-description">{t('guide.description')}</p>
+                                <p className="guide-platform">{t('guide.platform')}</p>
                             </div>
                         </div>
 
-                        {/* 设计理念 */}
                         <div className="settings-section">
                             <h3 className="settings-section-title">{t('guide.philosophy')}</h3>
                             <ul className="guide-list">
@@ -323,7 +372,6 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                             </ul>
                         </div>
 
-                        {/* 快速上手 */}
                         <div className="settings-section">
                             <h3 className="settings-section-title">{t('guide.quickStart')}</h3>
                             <div className="guide-steps">
@@ -351,32 +399,6 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                             </div>
                         </div>
 
-                        {/* AI 引擎说明 */}
-                        <div className="settings-section">
-                            <h3 className="settings-section-title">{t('guide.aiEngines')}</h3>
-                            <div className="guide-engines">
-                                <div className="engine-card">
-                                    <div className="engine-header">
-                                        <span className="engine-badge builtin">{t('guide.builtIn')}</span>
-                                        <strong>WebLLM</strong>
-                                    </div>
-                                    <p>{t('guide.webllmDesc')}</p>
-                                </div>
-                                <div className="engine-card">
-                                    <div className="engine-header">
-                                        <span className="engine-badge external">{t('guide.external')}</span>
-                                        <strong>Ollama</strong>
-                                    </div>
-                                    <p>
-                                        {t('guide.ollamaDesc')}
-                                        <a href="https://ollama.com" target="_blank" rel="noopener noreferrer"> {t('guide.ollamaDownload')} </a>
-                                        {t('guide.ollamaModels')}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 开发者信息 */}
                         <div className="settings-section">
                             <h3 className="settings-section-title">{t('guide.developer')}</h3>
                             <p className="guide-developer">
@@ -388,9 +410,7 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                             <p className="guide-contact">
                                 🔗 <a href="https://github.com/hooosberg/WitNote" target="_blank" rel="noopener noreferrer">GitHub</a>
                             </p>
-                            <p className="guide-version">
-                                {t('guide.version')}
-                            </p>
+                            <p className="guide-version">{t('guide.version')}</p>
                             <p className="guide-license">
                                 {t('guide.license')} <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer">MIT License</a>
                             </p>
@@ -403,7 +423,6 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
     return (
         <div className="settings-overlay" onClick={onClose}>
             <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-                {/* 头部 */}
                 <div className="settings-header">
                     <h2>{t('settings.title')}</h2>
                     <button className="settings-close-btn" onClick={onClose}>
@@ -411,9 +430,7 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                     </button>
                 </div>
 
-                {/* 主体 */}
                 <div className="settings-body">
-                    {/* 侧边 Tab */}
                     <div className="settings-tabs">
                         <button
                             className={`settings-tab ${activeTab === 'appearance' ? 'active' : ''}`}
@@ -445,7 +462,6 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                         </button>
                     </div>
 
-                    {/* Tab 内容 */}
                     <div className="settings-content">
                         {isLoading ? (
                             <div className="settings-loading">
@@ -458,7 +474,6 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                     </div>
                 </div>
 
-                {/* 底部 */}
                 <div className="settings-footer">
                     <button className="reset-btn" onClick={resetSettings}>
                         <RotateCcw size={16} />

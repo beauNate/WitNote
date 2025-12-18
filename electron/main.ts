@@ -3,11 +3,12 @@
  * 包含 IPC 通信、文件系统操作、chokidar 监听
  */
 
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import { join, basename, extname, relative } from 'path'
 import { promises as fs, existsSync, mkdirSync } from 'fs'
 import Store from 'electron-store'
-import chokidar from 'chokidar'
+import * as chokidar from 'chokidar'
+import { spawn } from 'child_process'
 
 // 禁用 GPU 沙箱以支持 WebGPU (WebLLM 需要)
 app.commandLine.appendSwitch('enable-features', 'Vulkan')
@@ -69,6 +70,106 @@ const IGNORED_PATTERNS = [
 ]
 
 let mainWindow: BrowserWindow | null = null
+let ollamaProcess: ReturnType<typeof spawn> | null = null
+
+// ============ Ollama 服务管理 ============
+
+// 获取 Ollama 路径
+function getOllamaPath(): string {
+    if (app.isPackaged) {
+        if (process.platform === 'darwin') {
+            return join(process.resourcesPath, 'ollama', 'mac', 'ollama')
+        }
+        if (process.platform === 'win32') {
+            return join(process.resourcesPath, 'ollama', 'win', 'ollama.exe')
+        }
+    }
+    // 开发环境：使用绝对路径
+    const { resolve } = require('path')
+    const devPath = resolve(__dirname, '../public/ollama/mac/ollama')
+    console.log('📍 Ollama 开发路径:', devPath)
+    if (existsSync(devPath)) {
+        return devPath
+    }
+    console.log('⚠️ 开发路径不存在，尝试系统 ollama')
+    return 'ollama' // fallback to system ollama
+}
+
+// 获取模型目录
+function getModelsPath(): string {
+    if (app.isPackaged) {
+        return join(process.resourcesPath, 'models', 'ollama-models')
+    }
+    const { resolve } = require('path')
+    return resolve(__dirname, '../public/models/ollama-models')
+}
+
+// 启动内置 Ollama 服务
+async function startOllama(): Promise<void> {
+    const ollamaPath = getOllamaPath()
+    const modelsPath = getModelsPath()
+
+    console.log('🤖 准备启动 Ollama...')
+    console.log('   路径:', ollamaPath)
+    console.log('   模型目录:', modelsPath)
+
+    // 检查是否已有 Ollama 在运行
+    try {
+        const response = await fetch('http://127.0.0.1:11434/api/tags')
+        if (response.ok) {
+            console.log('✅ Ollama 已在运行')
+            return
+        }
+    } catch {
+        // Ollama 未运行，继续启动
+    }
+
+    const env = {
+        ...process.env,
+        OLLAMA_HOST: '127.0.0.1:11434',
+        OLLAMA_MODELS: modelsPath
+    }
+
+    try {
+        ollamaProcess = spawn(ollamaPath, ['serve'], {
+            env,
+            detached: false,
+            stdio: ['ignore', 'pipe', 'pipe']
+        })
+
+        ollamaProcess.stdout?.on('data', (data: Buffer) => {
+            console.log('[Ollama]', data.toString().trim())
+        })
+
+        ollamaProcess.stderr?.on('data', (data: Buffer) => {
+            console.log('[Ollama]', data.toString().trim())
+        })
+
+        ollamaProcess.on('error', (error: Error) => {
+            console.error('❌ Ollama 启动失败:', error.message)
+        })
+
+        ollamaProcess.on('exit', (code: number | null) => {
+            console.log('📤 Ollama 已退出, code:', code)
+            ollamaProcess = null
+        })
+
+        // 等待 Ollama 启动
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        console.log('✅ Ollama 启动成功')
+    } catch (error) {
+        console.error('❌ 启动 Ollama 失败:', error)
+    }
+}
+
+// 停止 Ollama 服务
+function stopOllama(): void {
+    if (ollamaProcess) {
+        console.log('🛑 停止 Ollama...')
+        ollamaProcess.kill()
+        ollamaProcess = null
+    }
+}
 
 // ============ 文件系统类型 ============
 
@@ -344,27 +445,27 @@ function setupIpcHandlers() {
             depth: 10
         })
 
-        watcher.on('add', (filePath) => {
+        watcher.on('add', (filePath: string) => {
             const relativePath = relative(vaultPath, filePath)
             mainWindow?.webContents.send('fs:change', { type: 'add', path: relativePath })
         })
 
-        watcher.on('unlink', (filePath) => {
+        watcher.on('unlink', (filePath: string) => {
             const relativePath = relative(vaultPath, filePath)
             mainWindow?.webContents.send('fs:change', { type: 'unlink', path: relativePath })
         })
 
-        watcher.on('change', (filePath) => {
+        watcher.on('change', (filePath: string) => {
             const relativePath = relative(vaultPath, filePath)
             mainWindow?.webContents.send('fs:change', { type: 'change', path: relativePath })
         })
 
-        watcher.on('addDir', (filePath) => {
+        watcher.on('addDir', (filePath: string) => {
             const relativePath = relative(vaultPath, filePath)
             mainWindow?.webContents.send('fs:change', { type: 'addDir', path: relativePath })
         })
 
-        watcher.on('unlinkDir', (filePath) => {
+        watcher.on('unlinkDir', (filePath: string) => {
             const relativePath = relative(vaultPath, filePath)
             mainWindow?.webContents.send('fs:change', { type: 'unlinkDir', path: relativePath })
         })
@@ -410,6 +511,108 @@ function setupIpcHandlers() {
     ipcMain.handle('settings:reset', () => {
         settingsStore.clear()
         return true
+    })
+
+    // ============ Ollama 模型管理 IPC 处理器 ============
+    // 使用模块顶部定义的 getOllamaPath() 和 getModelsPath()
+
+    const ollamaEnv = {
+        ...process.env,
+        OLLAMA_HOST: '127.0.0.1:11434',
+        OLLAMA_MODELS: getModelsPath()
+    }
+
+    // 打开模型目录
+    ipcMain.handle('ollama:openModelsFolder', () => {
+        const modelsPath = getModelsPath()
+        shell.openPath(modelsPath)
+        return modelsPath
+    })
+
+    // 获取已安装模型列表
+    ipcMain.handle('ollama:listModels', async () => {
+        try {
+            const ollamaPath = getOllamaPath()
+            return new Promise((resolve) => {
+                const cmd = spawn(ollamaPath, ['list'], { env: ollamaEnv })
+                let output = ''
+                cmd.stdout.on('data', (data: Buffer) => {
+                    output += data.toString()
+                })
+                cmd.on('close', (code: number) => {
+                    if (code === 0) {
+                        try {
+                            const lines = output.trim().split('\n').slice(1)
+                            const models = lines.map(line => {
+                                const parts = line.split(/\s{2,}/)
+                                if (parts.length >= 3) {
+                                    return {
+                                        name: parts[0],
+                                        id: parts[1],
+                                        size: parts[2],
+                                        modified: parts[3] || ''
+                                    }
+                                }
+                                return null
+                            }).filter(m => m !== null)
+                            resolve({ success: true, models })
+                        } catch {
+                            resolve({ success: false, error: '解析模型列表失败' })
+                        }
+                    } else {
+                        resolve({ success: false, error: '获取模型列表失败' })
+                    }
+                })
+                cmd.on('error', (err: Error) => {
+                    resolve({ success: false, error: err.message })
+                })
+            })
+        } catch (error) {
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        }
+    })
+
+    // 下载模型
+    ipcMain.handle('ollama:pullModel', async (_event, modelName: string) => {
+        return new Promise((resolve, reject) => {
+            const ollamaPath = getOllamaPath()
+            const pullProcess = spawn(ollamaPath, ['pull', modelName], { env: ollamaEnv })
+            let output = ''
+            pullProcess.stdout.on('data', (data: Buffer) => {
+                const text = data.toString()
+                output += text
+                mainWindow?.webContents.send('ollama:pullProgress', { model: modelName, output: text })
+            })
+            pullProcess.stderr.on('data', (data: Buffer) => {
+                const text = data.toString()
+                output += text
+                mainWindow?.webContents.send('ollama:pullProgress', { model: modelName, output: text })
+            })
+            pullProcess.on('close', (code: number) => {
+                if (code === 0) {
+                    resolve({ success: true, output })
+                } else {
+                    reject(new Error(`下载失败，退出码: ${code}`))
+                }
+            })
+            pullProcess.on('error', (error: Error) => reject(error))
+        })
+    })
+
+    // 删除模型
+    ipcMain.handle('ollama:deleteModel', async (_event, modelName: string) => {
+        return new Promise((resolve, reject) => {
+            const ollamaPath = getOllamaPath()
+            const deleteProcess = spawn(ollamaPath, ['rm', modelName], { env: ollamaEnv })
+            deleteProcess.on('close', (code: number) => {
+                if (code === 0) {
+                    resolve({ success: true })
+                } else {
+                    reject(new Error(`删除失败，退出码: ${code}`))
+                }
+            })
+            deleteProcess.on('error', (error: Error) => reject(error))
+        })
     })
 }
 
@@ -465,7 +668,10 @@ function createWindow() {
 
 // ============ 应用启动 ============
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+    // 先启动 Ollama
+    await startOllama()
+
     setupIpcHandlers()
     createWindow()
 
@@ -480,6 +686,7 @@ app.on('window-all-closed', () => {
     if (watcher) {
         watcher.close()
     }
+    stopOllama()
     if (process.platform !== 'darwin') {
         app.quit()
     }

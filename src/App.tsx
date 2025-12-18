@@ -204,18 +204,6 @@ const AppContent: React.FC = () => {
         moveItem,
     } = fileSystem
 
-    // 引擎切换
-    useEffect(() => {
-        llm.onEngineChange((event) => {
-            if (event.reason === 'heartbeat') {
-                showToast(
-                    event.to === 'ollama' ? 'success' : 'info',
-                    event.to === 'ollama' ? '🟢 Ollama 已连接' : '🔵 使用内置模型'
-                )
-            }
-        })
-    }, [llm, showToast])
-
     // 加载文件摘要函数
     const loadFilePreviews = async (files: FileNode[]): Promise<Map<string, string>> => {
         const previewMap = new Map<string, string>();

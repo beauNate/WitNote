@@ -109,7 +109,20 @@
         "customPromptEmpty": "💡 留空则使用默认的助手角色",
         "resetToDefault": "重置为默认",
         "language": "语言",
-        "languageAuto": "跟随系统"
+        "languageAuto": "跟随系统",
+        "aiModelManagement": "AI 模型管理",
+        "builtInModelHint": "应用内置了 qwen2.5:0.5b 模型，开箱即用。您也可以手动添加其他模型到模型目录。",
+        "modelStoragePath": "模型存储位置",
+        "clickToOpenModels": "📂 点击打开模型目录",
+        "installedModels": "已安装模型",
+        "noModelsInstalled": "暂无已安装模型",
+        "currentUsing": "当前使用",
+        "useThis": "使用",
+        "deleteModel": "删除模型",
+        "recommendedModels": "推荐模型",
+        "installed": "已安装",
+        "downloading": "下载中...",
+        "download": "下载"
     },
     "guide": {
         "aboutTitle": "关于智简笔记本",

@@ -109,7 +109,20 @@
         "customPromptEmpty": "💡 Leave empty to use default assistant role",
         "resetToDefault": "Reset to Default",
         "language": "Language",
-        "languageAuto": "Follow System"
+        "languageAuto": "Follow System",
+        "aiModelManagement": "AI Model Management",
+        "builtInModelHint": "This app includes the built-in qwen2.5:0.5b model, ready to use. You can also manually add other models to the models directory.",
+        "modelStoragePath": "Model Storage Location",
+        "clickToOpenModels": "📂 Click to open models folder",
+        "installedModels": "Installed Models",
+        "noModelsInstalled": "No models installed",
+        "currentUsing": "Current",
+        "useThis": "Use",
+        "deleteModel": "Delete Model",
+        "recommendedModels": "Recommended Models",
+        "installed": "Installed",
+        "downloading": "Downloading...",
+        "download": "Download"
     },
     "guide": {
         "aboutTitle": "About WitNote",

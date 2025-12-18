@@ -57,6 +57,15 @@ interface SettingsAPI {
     reset(): Promise<boolean>
 }
 
+// Ollama API
+interface OllamaAPI {
+    openModelsFolder(): Promise<string>
+    pullModel(modelName: string): Promise<{ success: boolean; output: string }>
+    deleteModel(modelName: string): Promise<{ success: boolean }>
+    listModels(): Promise<{ success: boolean; models: Array<{ name: string; id: string; size: string; modified: string }> }>
+    onPullProgress(callback: (data: { model: string; output: string }) => void): () => void
+}
+
 // 全局 Window 接口扩展
 declare global {
     interface Window {
@@ -65,7 +74,9 @@ declare global {
         platform: PlatformAPI
         appWindow: AppWindowAPI
         settings: SettingsAPI
+        ollama: OllamaAPI
     }
 }
 
 export { }
+
