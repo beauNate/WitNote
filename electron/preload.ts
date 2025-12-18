@@ -125,6 +125,9 @@ contextBridge.exposeInMainWorld('ollama', {
     deleteModel: (modelName: string): Promise<{ success: boolean }> =>
         ipcRenderer.invoke('ollama:deleteModel', modelName),
 
+    cancelPull: (): Promise<{ success: boolean; cancelled?: string }> =>
+        ipcRenderer.invoke('ollama:cancelPull'),
+
     onPullProgress: (callback: (data: { model: string; output: string }) => void): (() => void) => {
         const handler = (_event: Electron.IpcRendererEvent, data: { model: string; output: string }) => callback(data)
         ipcRenderer.on('ollama:pullProgress', handler)

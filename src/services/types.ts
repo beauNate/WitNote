@@ -115,10 +115,86 @@ export const SYSTEM_PROMPT = `你是「禅意笔记本」的写作助手，运�
 export const OLLAMA_BASE_URL = 'http://localhost:11434';
 export const OLLAMA_DETECT_TIMEOUT = 3000; // 3秒超时
 
-// 推荐模型列表
-export const RECOMMENDED_MODELS = [
-    { name: 'qwen2.5:0.5b', description: '通义千问 0.5B (轻量高智)', size: '397MB' },
-    { name: 'qwen2.5:1.5b', description: '通义千问 1.5B (均衡首选)', size: '986MB' },
-    { name: 'llama3.2:1b', description: 'Llama 3.2 1B (Meta最新)', size: '1.3GB' },
-    { name: 'gemma:2b', description: 'Gemma 2B (Google出品)', size: '1.4GB' }
+// 推荐模型列表（按体积从小到大排序）
+export interface RecommendedModel {
+    name: string;
+    description: string;
+    taglineKey: string;  // 翻译键，用于多语言
+    size: string;
+    builtIn?: boolean;
+}
+
+// 聊天面板显示的精选模型（5个）
+export const RECOMMENDED_MODELS: RecommendedModel[] = [
+    {
+        name: 'qwen2.5:0.5b',
+        description: 'Qwen2.5 0.5B',
+        taglineKey: 'models.qwen05b',
+        size: '397MB',
+        builtIn: true
+    },
+    {
+        name: 'gemma3:1b',
+        description: 'Gemma3 1B',
+        taglineKey: 'models.gemma1b',
+        size: '815MB'
+    },
+    {
+        name: 'qwen2.5:1.5b',
+        description: 'Qwen2.5 1.5B',
+        taglineKey: 'models.qwen15b',
+        size: '986MB'
+    },
+    {
+        name: 'llama3.2:1b',
+        description: 'Llama 3.2 1B',
+        taglineKey: 'models.llama1b',
+        size: '1.3GB'
+    },
+    {
+        name: 'gemma3:4b',
+        description: 'Gemma3 4B',
+        taglineKey: 'models.gemma4b',
+        size: '3.3GB'
+    },
+];
+
+// 设置页面显示的高级模型（更大更强）
+export const ADVANCED_MODELS: RecommendedModel[] = [
+    {
+        name: 'qwen2.5:7b',
+        description: 'Qwen2.5 7B',
+        taglineKey: 'models.qwen7b',
+        size: '4.7GB'
+    },
+    {
+        name: 'llama3.2:3b',
+        description: 'Llama 3.2 3B',
+        taglineKey: 'models.llama3b',
+        size: '2.0GB'
+    },
+    {
+        name: 'mistral:7b',
+        description: 'Mistral 7B',
+        taglineKey: 'models.mistral7b',
+        size: '4.1GB'
+    },
+    {
+        name: 'phi3:mini',
+        description: 'Phi-3 Mini',
+        taglineKey: 'models.phi3mini',
+        size: '2.3GB'
+    },
+    {
+        name: 'gemma3:12b',
+        description: 'Gemma3 12B',
+        taglineKey: 'models.gemma12b',
+        size: '8.1GB'
+    },
+    {
+        name: 'qwen2.5:14b',
+        description: 'Qwen2.5 14B',
+        taglineKey: 'models.qwen14b',
+        size: '9.0GB'
+    },
 ];

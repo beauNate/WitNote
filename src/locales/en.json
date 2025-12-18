@@ -58,7 +58,9 @@
         "deleteModel": "Delete Model",
         "downloading": "Downloading",
         "loadingModel": "Loading",
-        "initializing": "Initializing..."
+        "initializing": "Initializing...",
+        "builtIn": "Built-in",
+        "moreModels": "More models in Settings..."
     },
     "model": {
         "speedUltraFast": "🚀 Ultra Fast",
@@ -71,6 +73,20 @@
         "useCaseBusiness": "Business emails, bilingual, general assistant",
         "useCaseMainChinese": "Main Chinese writing assistant (Recommended)",
         "useCaseLogic": "Logical reasoning, outlines, academic"
+    },
+    "models": {
+        "qwen05b": "🚀 Lightning fast, lightweight! Perfect for quick Q&A and writing assistance",
+        "gemma1b": "⚡ By Google, fast as lightning! Small but smart, smooth conversations",
+        "qwen15b": "💡 Perfect balance of speed and intelligence, excellent Chinese understanding",
+        "llama1b": "🌍 Meta's latest work, outstanding multilingual capabilities",
+        "gemma4b": "🧠 Performance beast, handles complex tasks with ease",
+        "qwen7b": "📝 Professional writing tool, ideal for long-form content and copywriting",
+        "llama3b": "🔬 Strong logical reasoning, great for code and math problems",
+        "mistral7b": "🇫🇷 French AI star, perfect for creative writing and roleplay",
+        "phi3mini": "🔬 Microsoft's powerhouse, exceptional reasoning and math skills",
+        "gemma12b": "👑 Flagship performance, multi-turn dialogue and deep analysis",
+        "qwen14b": "🏆 One of the strongest models, professional-grade writing and analysis",
+        "cancelDownload": "Cancel"
     },
     "settings": {
         "title": "Settings",

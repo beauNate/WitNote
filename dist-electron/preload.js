@@ -48,6 +48,7 @@ electron.contextBridge.exposeInMainWorld("ollama", {
   listModels: () => electron.ipcRenderer.invoke("ollama:listModels"),
   pullModel: (modelName) => electron.ipcRenderer.invoke("ollama:pullModel", modelName),
   deleteModel: (modelName) => electron.ipcRenderer.invoke("ollama:deleteModel", modelName),
+  cancelPull: () => electron.ipcRenderer.invoke("ollama:cancelPull"),
   onPullProgress: (callback) => {
     const handler = (_event, data) => callback(data);
     electron.ipcRenderer.on("ollama:pullProgress", handler);

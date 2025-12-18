@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { Send, Square, Sparkles, Check } from 'lucide-react'
-import { ChatMessage } from '../services/types'
+import { Send, Square, Sparkles, Check, Download, Trash2, Settings } from 'lucide-react'
+import { ChatMessage, RECOMMENDED_MODELS } from '../services/types'
 import { UseLLMReturn } from '../hooks/useLLM'
 import { marked } from 'marked'
 import katex from 'katex'
@@ -49,9 +49,10 @@ const renderLatex = (html: string): string => {
 
 interface ChatPanelProps {
     llm: UseLLMReturn
+    openSettings?: () => void
 }
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
+export const ChatPanel: React.FC<ChatPanelProps> = ({ llm, openSettings }) => {
     const { t } = useTranslation()
 
     const [inputValue, setInputValue] = useState('')
@@ -69,10 +70,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
         isGenerating,
         sendMessage,
         abortGeneration,
-        retryDetection
+        retryDetection,
+        pullModel,
+        deleteModel,
+        cancelPull,
+        downloadProgress
     } = llm
 
     const [showModelMenu, setShowModelMenu] = useState(false)
+    const [expandedModel, setExpandedModel] = useState<string | null>(null)
     const menuRef = useRef<HTMLDivElement>(null)
 
     // 点击外部关闭模型菜单
@@ -174,46 +180,135 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm }) => {
                                     </button>
                                     {showModelMenu && createPortal(
                                         <div className="model-dropdown" ref={menuRef}>
-                                            <div className="model-dropdown-header">
-                                                <span className="header-icon">🤖</span>
-                                                <span>{t('chat.ollamaConnected')}</span>
-                                            </div>
-                                            {ollamaModels.map((model) => {
-                                                const isCurrentModel = model.name === selectedOllamaModel
-                                                return (
-                                                    <div
-                                                        key={model.name}
-                                                        className={`model-item ${isCurrentModel ? 'active' : ''}`}
-                                                    >
-                                                        <div className="model-item-row">
-                                                            <div className="model-item-left">
-                                                                <span className="model-item-name">{formatModelName(model.name)}</span>
-                                                                {model.formattedSize && (
-                                                                    <span className="model-item-size">{model.formattedSize}</span>
-                                                                )}
+                                            {/* 已安装模型 */}
+                                            <div className="model-section">
+                                                <div className="model-section-title">{t('settings.installedModels')}</div>
+                                                {[...ollamaModels].sort((a, b) => {
+                                                    const aBuiltIn = RECOMMENDED_MODELS.find(m => m.name === a.name)?.builtIn ? 1 : 0
+                                                    const bBuiltIn = RECOMMENDED_MODELS.find(m => m.name === b.name)?.builtIn ? 1 : 0
+                                                    return bBuiltIn - aBuiltIn
+                                                }).map((model) => {
+                                                    const isCurrentModel = model.name === selectedOllamaModel
+                                                    const recommendedModel = RECOMMENDED_MODELS.find(m => m.name === model.name)
+                                                    const isBuiltIn = recommendedModel?.builtIn
+                                                    const isExpanded = expandedModel === model.name
+                                                    return (
+                                                        <div
+                                                            key={model.name}
+                                                            className={`model-item ${isCurrentModel ? 'active' : ''} ${isExpanded ? 'expanded' : ''}`}
+                                                        >
+                                                            <div className="model-item-row">
+                                                                <div
+                                                                    className="model-item-left clickable"
+                                                                    onClick={() => setExpandedModel(isExpanded ? null : model.name)}
+                                                                >
+                                                                    <span className="model-item-name">{formatModelName(model.name)}</span>
+                                                                    {isBuiltIn && <span className="model-badge builtin">{t('chat.builtIn')}</span>}
+                                                                    {model.formattedSize && (
+                                                                        <span className="model-item-size">{model.formattedSize}</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="model-item-right">
+                                                                    {isCurrentModel ? (
+                                                                        <span className="model-tag active">
+                                                                            <Check size={10} /> {t('chat.inUse')}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button
+                                                                                className="model-use-btn"
+                                                                                onClick={() => {
+                                                                                    setSelectedOllamaModel(model.name)
+                                                                                    setShowModelMenu(false)
+                                                                                }}
+                                                                            >
+                                                                                {t('settings.useThis')}
+                                                                            </button>
+                                                                            {!isBuiltIn && (
+                                                                                <button
+                                                                                    className="model-delete-btn"
+                                                                                    onClick={() => deleteModel(model.name)}
+                                                                                    title={t('settings.deleteModel')}
+                                                                                >
+                                                                                    <Trash2 size={12} />
+                                                                                </button>
+                                                                            )}
+                                                                        </>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                            <div className="model-item-right">
-                                                                {isCurrentModel ? (
-                                                                    <span className="model-tag active">
-                                                                        <Check size={10} /> {t('chat.inUse')}
-                                                                    </span>
-                                                                ) : (
-                                                                    <button
-                                                                        className="model-use-btn"
-                                                                        onClick={() => {
-                                                                            setSelectedOllamaModel(model.name)
-                                                                            setShowModelMenu(false)
-                                                                        }}
-                                                                    >
-                                                                        <span className="btn-default">{t('chat.downloaded')}</span>
-                                                                        <span className="btn-hover">{t('chat.use')}</span>
-                                                                    </button>
-                                                                )}
-                                                            </div>
+                                                            {isExpanded && recommendedModel && (
+                                                                <div className="model-tagline">{t(recommendedModel.taglineKey)}</div>
+                                                            )}
                                                         </div>
-                                                    </div>
-                                                )
-                                            })}
+                                                    )
+                                                })}
+                                            </div>
+
+                                            {/* 推荐模型 */}
+                                            <div className="model-section">
+                                                <div className="model-section-title">{t('settings.recommendedModels')}</div>
+                                                {RECOMMENDED_MODELS.filter(rm => !ollamaModels.find(m => m.name === rm.name)).map((model) => {
+                                                    const isDownloading = downloadProgress?.model === model.name
+                                                    const isExpanded = expandedModel === model.name
+                                                    return (
+                                                        <div key={model.name} className={`model-item recommended ${isExpanded ? 'expanded' : ''}`}>
+                                                            <div className="model-item-row">
+                                                                <div
+                                                                    className="model-item-left clickable"
+                                                                    onClick={() => setExpandedModel(isExpanded ? null : model.name)}
+                                                                >
+                                                                    <span className="model-item-name">{formatModelName(model.name)}</span>
+                                                                    <span className="model-item-desc">{model.size}</span>
+                                                                </div>
+                                                                <div className="model-item-right">
+                                                                    {isDownloading ? (
+                                                                        <div className="model-download-progress">
+                                                                            <div className="progress-bar">
+                                                                                <div
+                                                                                    className="progress-fill"
+                                                                                    style={{ width: `${downloadProgress?.progress || 0}%` }}
+                                                                                />
+                                                                            </div>
+                                                                            <span className="progress-text">{downloadProgress?.progress || 0}%</span>
+                                                                            <button
+                                                                                className="model-cancel-btn"
+                                                                                onClick={() => cancelPull()}
+                                                                                title={t('models.cancelDownload')}
+                                                                            >
+                                                                                <Square size={10} />
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <button
+                                                                            className="model-download-btn"
+                                                                            onClick={() => pullModel(model.name)}
+                                                                        >
+                                                                            <Download size={12} />
+                                                                            {t('settings.download')}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            {isExpanded && (
+                                                                <div className="model-tagline">{t(model.taglineKey)}</div>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+
+                                            {/* 更多模型链接 */}
+                                            <div
+                                                className="model-more-link"
+                                                onClick={() => {
+                                                    setShowModelMenu(false)
+                                                    openSettings?.()
+                                                }}
+                                            >
+                                                <Settings size={12} />
+                                                <span>{t('chat.moreModels')}</span>
+                                            </div>
                                         </div>,
                                         document.body
                                     )}

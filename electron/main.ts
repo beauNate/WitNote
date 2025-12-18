@@ -571,32 +571,69 @@ function setupIpcHandlers() {
             return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
         }
     })
+    // 存储当前下载进程引用
+    let currentPullProcess: ReturnType<typeof spawn> | null = null
+    let currentPullModelName: string | null = null
 
     // 下载模型
     ipcMain.handle('ollama:pullModel', async (_event, modelName: string) => {
         return new Promise((resolve, reject) => {
             const ollamaPath = getOllamaPath()
-            const pullProcess = spawn(ollamaPath, ['pull', modelName], { env: ollamaEnv })
+            currentPullModelName = modelName
+            currentPullProcess = spawn(ollamaPath, ['pull', modelName], { env: ollamaEnv })
             let output = ''
-            pullProcess.stdout.on('data', (data: Buffer) => {
+            currentPullProcess.stdout?.on('data', (data: Buffer) => {
                 const text = data.toString()
                 output += text
                 mainWindow?.webContents.send('ollama:pullProgress', { model: modelName, output: text })
             })
-            pullProcess.stderr.on('data', (data: Buffer) => {
+            currentPullProcess.stderr?.on('data', (data: Buffer) => {
                 const text = data.toString()
                 output += text
                 mainWindow?.webContents.send('ollama:pullProgress', { model: modelName, output: text })
             })
-            pullProcess.on('close', (code: number) => {
+            currentPullProcess.on('close', (code: number) => {
+                currentPullProcess = null
+                currentPullModelName = null
                 if (code === 0) {
                     resolve({ success: true, output })
                 } else {
                     reject(new Error(`下载失败，退出码: ${code}`))
                 }
             })
-            pullProcess.on('error', (error: Error) => reject(error))
+            currentPullProcess.on('error', (error: Error) => {
+                currentPullProcess = null
+                currentPullModelName = null
+                reject(error)
+            })
         })
+    })
+
+    // 取消下载
+    ipcMain.handle('ollama:cancelPull', async () => {
+        if (currentPullProcess) {
+            const modelName = currentPullModelName
+            console.log(`🛑 取消下载: ${modelName}`)
+
+            // 终止进程
+            currentPullProcess.kill('SIGTERM')
+            currentPullProcess = null
+            currentPullModelName = null
+
+            // 删除未完成的模型文件
+            if (modelName) {
+                try {
+                    const ollamaPath = getOllamaPath()
+                    spawn(ollamaPath, ['rm', modelName], { env: ollamaEnv })
+                    console.log(`🗑️ 已清理未完成的模型: ${modelName}`)
+                } catch (e) {
+                    console.log('清理未完成模型失败:', e)
+                }
+            }
+
+            return { success: true, cancelled: modelName }
+        }
+        return { success: false, error: '没有正在进行的下载' }
     })
 
     // 删除模型

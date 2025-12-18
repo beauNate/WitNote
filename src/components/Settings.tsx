@@ -17,7 +17,6 @@ import {
     Loader2,
     RotateCcw,
     Globe,
-    FolderOpen,
     Trash2,
     Check,
     Download
@@ -25,6 +24,7 @@ import {
 import { useSettings, AppSettings } from '../hooks/useSettings';
 import { changeLanguage, getCurrentLanguage } from '../i18n';
 import { UseLLMReturn, RECOMMENDED_MODELS } from '../hooks/useLLM';
+import { ADVANCED_MODELS } from '../services/types';
 
 type TabType = 'appearance' | 'ai' | 'persona' | 'guide';
 
@@ -201,21 +201,6 @@ export function Settings({ isOpen, onClose, llm }: SettingsProps) {
                             {t('settings.builtInModelHint')}
                         </p>
 
-                        {/* 模型存储路径 */}
-                        <div className="settings-row">
-                            <label>{t('settings.modelStoragePath')}</label>
-                            <div
-                                className="model-path-display"
-                                onClick={() => window.ollama?.openModelsFolder()}
-                                title="点击打开目录"
-                            >
-                                <FolderOpen size={16} style={{ marginRight: 8 }} />
-                                <code className="path-code" style={{ flex: 1, cursor: 'pointer' }}>
-                                    {t('settings.clickToOpenModels')}
-                                </code>
-                            </div>
-                        </div>
-
                         {/* 本地模型列表 */}
                         {llm && (
                             <>
@@ -312,6 +297,56 @@ export function Settings({ isOpen, onClose, llm }: SettingsProps) {
                                     })}
                                 </div>
 
+                                {/* 高级模型 */}
+                                <h4 className="settings-section-subtitle" style={{ marginTop: 20 }}>
+                                    {t('settings.advancedModels') || '高级模型'}
+                                </h4>
+                                <p className="settings-hint">
+                                    {t('settings.advancedModelsHint') || '这些模型体积较大，需要更多存储空间和内存，但能力更强。'}
+                                </p>
+                                <div className="recommended-models">
+                                    {ADVANCED_MODELS.map(rec => {
+                                        const isInstalled = llm.ollamaModels.some(m =>
+                                            m.name.startsWith(rec.name.split(':')[0])
+                                        );
+                                        const isDownloading = llm.downloadProgress?.model === rec.name;
+
+                                        return (
+                                            <div key={rec.name} className="model-card">
+                                                <div className="model-header">
+                                                    <div className="model-title">{rec.name}</div>
+                                                    <div className="model-size">{rec.size}</div>
+                                                </div>
+                                                <div className="model-desc">{rec.description}</div>
+                                                <div className="model-tagline-text">{t(rec.taglineKey)}</div>
+                                                <div className="model-footer">
+                                                    {isInstalled ? (
+                                                        <div className="status-installed">
+                                                            <Check size={14} />
+                                                            <span>{t('settings.installed')}</span>
+                                                        </div>
+                                                    ) : isDownloading ? (
+                                                        <div className="download-progress">
+                                                            <Loader2 size={14} className="spin" />
+                                                            <span className="progress-text">
+                                                                {llm.downloadProgress?.progress || 0}%
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            className="download-btn"
+                                                            onClick={() => llm.pullModel(rec.name)}
+                                                        >
+                                                            <Download size={14} />
+                                                            {t('settings.download')}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
                                 {/* 下载进度条 */}
                                 {llm.downloadProgress && (
                                     <div className="global-download-status">
@@ -319,8 +354,14 @@ export function Settings({ isOpen, onClose, llm }: SettingsProps) {
                                             <Loader2 size={14} className="spin" />
                                             <span>正在下载 {llm.downloadProgress.model}...</span>
                                         </div>
+                                        <div className="download-progress-bar">
+                                            <div
+                                                className="download-progress-fill"
+                                                style={{ width: `${llm.downloadProgress.progress}%` }}
+                                            />
+                                        </div>
                                         <div className="status-output">
-                                            {llm.downloadProgress.output}
+                                            {llm.downloadProgress.progress}% - {llm.downloadProgress.output}
                                         </div>
                                     </div>
                                 )}

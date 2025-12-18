@@ -984,7 +984,7 @@ const AppContent: React.FC = () => {
                     !rightCollapsed && (
                         <>
                             <Panel defaultSize={25} minSize={25} maxSize={25} className="panel-chat">
-                                <ChatPanel llm={llm} />
+                                <ChatPanel llm={llm} openSettings={() => setShowSettings(true)} />
                             </Panel>
                         </>
                     )

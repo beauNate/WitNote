@@ -59,7 +59,8 @@ export interface UseLLMReturn {
     refreshModels: () => Promise<void>;
     pullModel: (modelName: string) => Promise<void>;
     deleteModel: (modelName: string) => Promise<void>;
-    downloadProgress: { model: string; output: string } | null;
+    cancelPull: () => Promise<void>;
+    downloadProgress: { model: string; output: string; progress: number } | null;
 }
 
 // 导出推荐模型供UI使用
@@ -85,7 +86,7 @@ export function useLLM(): UseLLMReturn {
     const [selectedOllamaModel, setSelectedOllamaModel] = useState<string>('');
 
     // 模型管理状态
-    const [downloadProgress, setDownloadProgress] = useState<{ model: string; output: string } | null>(null);
+    const [downloadProgress, setDownloadProgress] = useState<{ model: string; output: string; progress: number } | null>(null);
 
     // 聊天状态
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -109,7 +110,10 @@ export function useLLM(): UseLLMReturn {
     useEffect(() => {
         if (!window.ollama) return;
         return window.ollama.onPullProgress((data) => {
-            setDownloadProgress(data);
+            // 从 output 中解析进度百分比，例如 "pulling manifest" 或 "pulling sha256:xxx 50%"
+            const percentMatch = data.output.match(/(\d+)%/);
+            const progress = percentMatch ? parseInt(percentMatch[1], 10) : 0;
+            setDownloadProgress({ ...data, progress });
         });
     }, []);
 
@@ -175,7 +179,7 @@ export function useLLM(): UseLLMReturn {
     const pullModel = useCallback(async (modelName: string) => {
         if (!window.ollama) return;
 
-        setDownloadProgress({ model: modelName, output: '开始下载...' });
+        setDownloadProgress({ model: modelName, output: '开始下载...', progress: 0 });
 
         try {
             const result = await window.ollama.pullModel(modelName);
@@ -214,6 +218,25 @@ export function useLLM(): UseLLMReturn {
             console.error(`❌ 模型 ${modelName} 删除失败:`, error);
         }
     }, [refreshModels, selectedOllamaModel, ollamaModels]);
+
+    /**
+     * 取消下载
+     */
+    const cancelPull = useCallback(async () => {
+        if (!window.ollama) return;
+
+        try {
+            const result = await window.ollama.cancelPull();
+            if (result.success) {
+                console.log(`🛑 已取消下载: ${result.cancelled}`);
+                setDownloadProgress(null);
+                await refreshModels();
+            }
+        } catch (error) {
+            console.error('取消下载失败:', error);
+            setDownloadProgress(null);
+        }
+    }, [refreshModels]);
 
     /**
      * 初始化 Ollama
@@ -593,6 +616,7 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
         refreshModels,
         pullModel,
         deleteModel,
+        cancelPull,
         downloadProgress
     };
 }

@@ -1909,6 +1909,125 @@ select:focus {
   font-size: 14px;
 }
 
+/* 模型分组区域 */
+.model-section {
+  padding: 6px 0;
+}
+
+.model-section:not(:first-child) {
+  border-top: 1px solid var(--border-color);
+}
+
+.model-section-title {
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 内置徽章 */
+.model-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.model-badge.builtin {
+  color: white;
+  background: linear-gradient(135deg, #34c759, #30d158);
+}
+
+/* 模型描述 */
+.model-item-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* 正在下载状态 */
+.model-downloading {
+  font-size: 10px;
+  color: #3b82f6;
+  font-weight: 500;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* 更多模型链接 */
+.model-more-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.model-more-link:hover {
+  color: var(--accent-color);
+  background: var(--bg-hover);
+}
+
+/* 模型描述标语 */
+.model-tagline {
+  padding: 8px 12px;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border-radius: 6px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.model-item.expanded {
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.model-item-left.clickable {
+  cursor: pointer;
+}
+
+.model-item-left.clickable:hover .model-item-name {
+  color: var(--accent-color);
+}
+
 /* 模型列表项 */
 .model-item {
   padding: 8px 12px;
@@ -2044,6 +2163,55 @@ select:focus {
 .model-download-btn:hover {
   background: rgba(59, 130, 246, 0.1);
   color: #3b82f6;
+}
+
+/* 取消下载按钮 */
+.model-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: rgba(239, 68, 68, 0.1);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  color: #ef4444;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.model-cancel-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* 下载进度区域 */
+.model-download-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-download-progress .progress-bar {
+  width: 50px;
+  height: 4px;
+  background: var(--bg-hover);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.model-download-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.model-download-progress .progress-text {
+  font-size: 10px;
+  color: #3b82f6;
+  font-weight: 500;
+  min-width: 30px;
 }
 
 /* 使用按钮 - 悬停切换文字 */

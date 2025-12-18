@@ -58,7 +58,9 @@
         "deleteModel": "删除模型",
         "downloading": "正在下载",
         "loadingModel": "正在加载",
-        "initializing": "正在初始化..."
+        "initializing": "正在初始化...",
+        "builtIn": "内置",
+        "moreModels": "设置中查看更多模型..."
     },
     "model": {
         "speedUltraFast": "🚀 极速",
@@ -71,6 +73,20 @@
         "useCaseBusiness": "商务邮件、双语写作、通用助手",
         "useCaseMainChinese": "主力中文写作助手 (推荐)",
         "useCaseLogic": "严谨逻辑、大纲生成、学术辅助"
+    },
+    "models": {
+        "qwen05b": "🚀 秒速响应，轻量首选！适合日常问答和快速写作辅助",
+        "gemma1b": "⚡ 谷歌出品，快如闪电！小巧但聪明，对话流畅",
+        "qwen15b": "💡 智能与速度的完美平衡，中文理解超强",
+        "llama1b": "🌍 Meta最新力作，多语言能力出众",
+        "gemma4b": "🧠 性能怪兽，复杂任务轻松搞定",
+        "qwen7b": "📝 专业写作利器，长文创作、文案策划首选",
+        "llama3b": "🔬 逻辑推理强，代码和数学问题不在话下",
+        "mistral7b": "🇫🇷 法国AI新星，创意写作和角色扮演神器",
+        "phi3mini": "🔬 微软小钢炮，推理和数学能力超群",
+        "gemma12b": "👑 旗舰级性能，多轮对话和深度分析",
+        "qwen14b": "🏆 中文最强模型之一，专业级写作和分析",
+        "cancelDownload": "取消下载"
     },
     "settings": {
         "title": "设置",
