@@ -13,12 +13,8 @@ import {
     HelpCircle,
     Keyboard,
     Info,
-    Sun,
-    Moon,
-    Coffee,
     Loader2,
     RotateCcw,
-    Trash2,
     Check,
     Plus,
     PenTool,
@@ -40,44 +36,17 @@ import {
     AlignLeft
 } from 'lucide-react';
 import { useSettings, AppSettings, PRESET_ROLES } from '../hooks/useSettings';
-import { changeLanguage, getCurrentLanguage, LanguageCode } from '../i18n';
 import { UseLLMReturn } from '../hooks/useLLM';
 import ConfirmDialog from './ConfirmDialog';
 
 import {
     getDefaultSystemPrompt,
-    INSTRUCTION_TEMPLATE_STANDARD_ZH,
-    INSTRUCTION_TEMPLATE_FULL_ZH,
-    INSTRUCTION_TEMPLATE_STANDARD_ZH_TW,
-    INSTRUCTION_TEMPLATE_FULL_ZH_TW,
-    INSTRUCTION_TEMPLATE_STANDARD_JA,
-    INSTRUCTION_TEMPLATE_FULL_JA,
-    INSTRUCTION_TEMPLATE_STANDARD_KO,
-    INSTRUCTION_TEMPLATE_FULL_KO,
-    INSTRUCTION_TEMPLATE_STANDARD_FR,
-    INSTRUCTION_TEMPLATE_FULL_FR,
-    INSTRUCTION_TEMPLATE_STANDARD_DE,
-    INSTRUCTION_TEMPLATE_FULL_DE,
-    INSTRUCTION_TEMPLATE_STANDARD_ES,
-    INSTRUCTION_TEMPLATE_FULL_ES,
     INSTRUCTION_TEMPLATE_STANDARD_EN,
     INSTRUCTION_TEMPLATE_FULL_EN
 } from '../services/types';
 import { UseEngineStoreReturn } from '../store/engineStore';
-import { ALL_WEBLLM_MODELS_INFO } from '../engines/webllmModels';
 
 type TabType = 'appearance' | 'ai' | 'persona' | 'shortcuts' | 'about';
-
-const LANGUAGES: { code: LanguageCode; label: string }[] = [
-    { code: 'en', label: 'English' },
-    { code: 'zh', label: '简体中文 (Simplified Chinese)' },
-    { code: 'ja', label: '日本語 (Japanese)' },
-    { code: 'ko', label: '한국어 (Korean)' },
-    { code: 'fr', label: 'Français (French)' },
-    { code: 'de', label: 'Deutsch (German)' },
-    { code: 'es', label: 'Español (Spanish)' },
-    { code: 'zh-TW', label: '繁體中文 (Traditional Chinese)' },
-];
 
 interface SettingsProps {
     isOpen: boolean;
@@ -97,7 +66,7 @@ const RoleIcon = ({ name, size = 20, className }: { name: string, size?: number,
 };
 
 export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: SettingsProps) {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState<TabType>(defaultTab || 'appearance');
 
     // 自定义确认对话框状态
@@ -119,14 +88,12 @@ export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: Sett
         settings,
         isLoading,
         setSetting,
-        setTheme,
         resetSettings,
         addPromptTemplate,
         removePromptTemplate,
         updatePromptTemplate
     } = useSettings();
 
-    const [currentLang, setCurrentLang] = useState(getCurrentLanguage());
     const [appVersion, setAppVersion] = useState('1.2.1');
     const [isCreatingRole, setIsCreatingRole] = useState(false);
     const [newRoleName, setNewRoleName] = useState('');
@@ -140,36 +107,11 @@ export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: Sett
     // 生成完整提示词
     const generatePrompt = (basePrompt: string, level: 'lite' | 'standard' | 'full') => {
         let suffix = '';
-        const lang = currentLang;
 
         if (level === 'standard') {
-            switch (lang) {
-                case 'zh': suffix = INSTRUCTION_TEMPLATE_STANDARD_ZH; break;
-                case 'zh-TW': suffix = INSTRUCTION_TEMPLATE_STANDARD_ZH_TW; break;
-                case 'ja': suffix = INSTRUCTION_TEMPLATE_STANDARD_JA; break;
-                case 'ko': suffix = INSTRUCTION_TEMPLATE_STANDARD_KO; break;
-                case 'fr': suffix = INSTRUCTION_TEMPLATE_STANDARD_FR; break;
-                case 'de': suffix = INSTRUCTION_TEMPLATE_STANDARD_DE; break;
-                case 'es': suffix = INSTRUCTION_TEMPLATE_STANDARD_ES; break;
-                case 'en':
-                default:
-                    suffix = INSTRUCTION_TEMPLATE_STANDARD_EN;
-                    break;
-            }
+            suffix = INSTRUCTION_TEMPLATE_STANDARD_EN;
         } else if (level === 'full') {
-            switch (lang) {
-                case 'zh': suffix = INSTRUCTION_TEMPLATE_FULL_ZH; break;
-                case 'zh-TW': suffix = INSTRUCTION_TEMPLATE_FULL_ZH_TW; break;
-                case 'ja': suffix = INSTRUCTION_TEMPLATE_FULL_JA; break;
-                case 'ko': suffix = INSTRUCTION_TEMPLATE_FULL_KO; break;
-                case 'fr': suffix = INSTRUCTION_TEMPLATE_FULL_FR; break;
-                case 'de': suffix = INSTRUCTION_TEMPLATE_FULL_DE; break;
-                case 'es': suffix = INSTRUCTION_TEMPLATE_FULL_ES; break;
-                case 'en':
-                default:
-                    suffix = INSTRUCTION_TEMPLATE_FULL_EN;
-                    break;
-            }
+            suffix = INSTRUCTION_TEMPLATE_FULL_EN;
         }
 
         return basePrompt + suffix;
@@ -188,7 +130,7 @@ export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: Sett
                 }
             }
         }
-    }, [promptLevel, activeRoleId, currentLang]); // 默认版本号
+    }, [promptLevel, activeRoleId]); // 默认版本号
 
     // 获取应用版本号
     useEffect(() => {
@@ -216,23 +158,8 @@ export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: Sett
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
 
-    // 监听语言变化
-    useEffect(() => {
-        const handleLanguageChange = () => {
-            setCurrentLang(getCurrentLanguage());
-        };
-        i18n.on('languageChanged', handleLanguageChange);
-        return () => {
-            i18n.off('languageChanged', handleLanguageChange);
-        };
-    }, [i18n]);
 
     if (!isOpen) return null;
-
-    const handleLanguageChange = (lang: LanguageCode) => {
-        changeLanguage(lang);
-        setCurrentLang(lang);
-    };
 
     // Tab 内容
     const renderTabContent = () => {
@@ -240,54 +167,6 @@ export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: Sett
             case 'appearance':
                 return (
                     <div className="settings-tab-content">
-                        {/* 语言选择 - 下拉菜单 */}
-                        <div className="settings-section">
-                            <h3 className="settings-section-title">{t('settings.language')}</h3>
-                            <div className="settings-row">
-                                <label>{t('settings.languageAuto')}</label>
-                                <select
-                                    value={currentLang}
-                                    onChange={(e) => handleLanguageChange(e.target.value as LanguageCode)}
-                                    className="settings-select"
-                                    style={{ minWidth: '200px' }}
-                                >
-                                    {LANGUAGES.map((lang) => (
-                                        <option key={lang.code} value={lang.code}>
-                                            {lang.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* 主题选择 */}
-                        <div className="settings-section">
-                            <h3 className="settings-section-title">{t('settings.theme')}</h3>
-                            <div className="theme-options">
-                                <button
-                                    className={`theme-option ${settings.theme === 'light' ? 'active' : ''}`}
-                                    onClick={() => setTheme('light')}
-                                >
-                                    <Sun size={24} />
-                                    <span>{t('settings.themeLight')}</span>
-                                </button>
-                                <button
-                                    className={`theme-option ${settings.theme === 'dark' ? 'active' : ''}`}
-                                    onClick={() => setTheme('dark')}
-                                >
-                                    <Moon size={24} />
-                                    <span>{t('settings.themeDark')}</span>
-                                </button>
-                                <button
-                                    className={`theme-option ${settings.theme === 'tea' ? 'active' : ''}`}
-                                    onClick={() => setTheme('tea')}
-                                >
-                                    <Coffee size={24} />
-                                    <span>{t('settings.themeTea')}</span>
-                                </button>
-                            </div>
-                        </div>
-
                         {/* 字体选择 */}
                         <div className="settings-section">
                             <h3 className="settings-section-title">{t('settings.font')}</h3>
@@ -359,25 +238,6 @@ export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: Sett
                             <div className="engine-selector-container">
                                 <div className="engine-selector-line" />
 
-                                {/* WebLLM - 本地内置 */}
-                                <button
-                                    className={`engine-selector-item ${engineStore.currentEngine === 'webllm' ? 'active' : ''}`}
-                                    onClick={() => {
-                                        engineStore.setEngine('webllm')
-                                        // 自动初始化：只有在非首次使用时才自动加载
-                                        const savedModel = localStorage.getItem('zen-selected-webllm-model');
-                                        const targetModel = savedModel || ALL_WEBLLM_MODELS_INFO[0]?.model_id;
-
-                                        if (!engineStore.webllmReady && !engineStore.webllmLoading && !engineStore.webllmFirstTimeSetup && targetModel) {
-                                            engineStore.initWebLLM(targetModel)
-                                        }
-                                    }}
-                                    title="本地内置模型"
-                                >
-                                    <div className="engine-circle"><Bot size={24} /></div>
-                                    <span className="engine-label">{t('chat.engineWebLLM')}</span>
-                                </button>
-
                                 {/* Ollama */}
                                 <button
                                     className={`engine-selector-item ${engineStore.currentEngine === 'ollama' ? 'active' : ''}`}
@@ -410,257 +270,6 @@ export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: Sett
                                 </button>
                             </div>
                         </div>
-
-                        {/* WebLLM 内容 */}
-                        {engineStore.currentEngine === 'webllm' && (
-                            <div className="settings-section fade-in">
-                                <div className="settings-section-header">
-                                    <h3 className="settings-section-title">{t('chat.builtInWebLLMModels')}</h3>
-                                </div>
-                                <div className="recommended-models" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    {ALL_WEBLLM_MODELS_INFO.map(modelInfo => {
-                                        const isSelected = engineStore.selectedModel === modelInfo.model_id;
-                                        const isLoading = isSelected && engineStore.webllmLoading;
-                                        const isReady = isSelected && engineStore.webllmReady;
-                                        const isCached = engineStore.webllmCachedModels.includes(modelInfo.model_id);
-                                        const progressVal = engineStore.webllmProgress ? Math.round(engineStore.webllmProgress.progress * 100) : 0;
-
-                                        return (
-                                            <div key={modelInfo.model_id} className="model-card" style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                padding: '12px 16px',
-                                                background: 'var(--bg-card)',
-                                                borderRadius: '10px'
-                                            }}>
-                                                {/* 左侧：标题和描述 */}
-                                                <div style={{ flex: 1 }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                                        <span style={{ fontWeight: 600 }}>{modelInfo.displayName}</span>
-                                                        <span style={{
-                                                            fontSize: '11px',
-                                                            padding: '2px 8px',
-                                                            borderRadius: '10px',
-                                                            background: 'var(--border-color)',
-                                                            color: 'var(--text-secondary)'
-                                                        }}>
-                                                            {modelInfo.size}
-                                                        </span>
-                                                        {modelInfo.isBuiltIn && (
-                                                            <span className="builtin-tag">{t('chat.builtIn')}</span>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                                        {modelInfo.description}
-                                                    </div>
-                                                    {/* 进度条 */}
-                                                    {isLoading && (
-                                                        <div style={{ marginTop: '8px' }}>
-                                                            <div style={{
-                                                                height: '4px',
-                                                                background: 'var(--border-color)',
-                                                                borderRadius: '2px',
-                                                                overflow: 'hidden',
-                                                                minWidth: '200px'
-                                                            }}>
-                                                                <div style={{
-                                                                    width: `${progressVal}%`,
-                                                                    minWidth: progressVal > 0 ? '4px' : '0',
-                                                                    height: '100%',
-                                                                    background: 'var(--accent)',
-                                                                    transition: 'width 0.3s ease'
-                                                                }} />
-                                                            </div>
-                                                            <div style={{
-                                                                fontSize: '11px',
-                                                                color: 'var(--text-secondary)',
-                                                                marginTop: '4px',
-                                                                overflow: 'hidden',
-                                                                textOverflow: 'ellipsis',
-                                                                whiteSpace: 'nowrap',
-                                                                maxWidth: '300px'
-                                                            }}>
-                                                                {progressVal}% {engineStore.webllmProgress?.text || '加载中...'}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* 右侧：按钮 */}
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '16px' }}>
-                                                    {isLoading ? (
-                                                        <>
-                                                            <Loader2 size={18} className="spin" style={{ color: 'var(--accent)' }} />
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setConfirmDialog({
-                                                                        isOpen: true,
-                                                                        title: t('chat.confirmCancelDownloadTitle'),
-                                                                        message: t('chat.confirmCancelDownloadMessage'),
-                                                                        onConfirm: () => {
-                                                                            engineStore?.resetWebLLMSetup();
-                                                                            setConfirmDialog(null);
-                                                                        }
-                                                                    });
-                                                                }}
-                                                                title="取消下载"
-                                                                style={{
-                                                                    padding: '6px',
-                                                                    borderRadius: '50%',
-                                                                    border: 'none',
-                                                                    background: 'transparent',
-                                                                    color: 'var(--text-secondary)',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    transition: 'all 0.2s'
-                                                                }}
-                                                                onMouseEnter={(e) => {
-                                                                    e.currentTarget.style.color = '#ff453a';
-                                                                    e.currentTarget.style.background = 'rgba(255, 69, 58, 0.1)';
-                                                                }}
-                                                                onMouseLeave={(e) => {
-                                                                    e.currentTarget.style.color = 'var(--text-secondary)';
-                                                                    e.currentTarget.style.background = 'transparent';
-                                                                }}
-                                                            >
-                                                                <X size={16} />
-                                                            </button>
-                                                        </>
-                                                    ) : isReady && isSelected ? (
-                                                        <button
-                                                            className="download-btn"
-                                                            style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px' }}
-                                                            disabled
-                                                        >
-                                                            <Check size={16} style={{ marginRight: '4px' }} /> {t('chat.inUse')}
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            className="download-btn"
-                                                            onClick={() => engineStore.initWebLLM(modelInfo.model_id)}
-                                                            style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px' }}
-                                                        >
-                                                            {isCached ? t('chat.use') : t('chat.download')}
-                                                        </button>
-                                                    )}
-
-                                                    {/* 清除/删除缓存按钮 */}
-                                                    {(isCached || (isReady && isSelected)) && !isLoading && (
-                                                        <button
-                                                            className="icon-btn delete-model-btn"
-                                                            title={modelInfo.isBuiltIn ? "清除缓存" : "删除缓存"}
-                                                            onClick={async (e) => {
-                                                                e.stopPropagation();
-                                                                const confirmMsg = modelInfo.isBuiltIn
-                                                                    ? t('chat.confirmClearCacheMessage')
-                                                                    : t('chat.confirmDeleteCacheMessage');
-
-                                                                setConfirmDialog({
-                                                                    isOpen: true,
-                                                                    title: modelInfo.isBuiltIn ? t('chat.confirmClearCacheTitle') : t('chat.confirmDeleteCacheTitle'),
-                                                                    message: confirmMsg,
-                                                                    onConfirm: async () => {
-                                                                        setConfirmDialog(null);
-                                                                        if (modelInfo.isBuiltIn) {
-                                                                            // 内置模型：彻底清除所有缓存（类似 Chrome DevTools 的 Clear site data）
-                                                                            try {
-                                                                                console.log('🧹 开始清除所有站点数据...');
-
-                                                                                // 1. 删除所有 IndexedDB 数据库（不过滤）
-                                                                                const dbs = await window.indexedDB.databases();
-                                                                                console.log('📦 发现数据库:', dbs.map(db => db.name));
-
-                                                                                const deletePromises = dbs.map(db => new Promise<void>((resolve) => {
-                                                                                    if (db.name) {
-                                                                                        console.log('🗑️ 删除:', db.name);
-                                                                                        const req = window.indexedDB.deleteDatabase(db.name);
-                                                                                        req.onsuccess = () => {
-                                                                                            console.log('✅', db.name);
-                                                                                            resolve();
-                                                                                        };
-                                                                                        req.onerror = (e) => {
-                                                                                            console.error('❌', db.name, e);
-                                                                                            resolve(); // 继续删除其他
-                                                                                        };
-                                                                                        req.onblocked = () => {
-                                                                                            console.warn('⚠️ 阻塞:', db.name);
-                                                                                            resolve();
-                                                                                        };
-                                                                                    } else {
-                                                                                        resolve();
-                                                                                    }
-                                                                                }));
-
-                                                                                await Promise.all(deletePromises);
-                                                                                console.log('✅ 所有 IndexedDB 已清除');
-
-                                                                                // 2. 清除所有 Cache Storage
-                                                                                const cacheNames = await caches.keys();
-                                                                                console.log('📦 发现 Cache:', cacheNames);
-                                                                                await Promise.all(cacheNames.map(name => caches.delete(name)));
-                                                                                console.log('✅ 所有 Cache 已清除');
-
-                                                                                // 3. 清除 localStorage 相关标记
-                                                                                localStorage.removeItem('webllm-setup-completed');
-                                                                                localStorage.removeItem('zen-selected-webllm-model');
-                                                                                console.log('✅ localStorage 已清理');
-
-                                                                                // 4. 刷新页面
-                                                                                console.log('🔄 准备刷新页面');
-                                                                                // 直接刷新页面，不需要额外确认
-                                                                                setConfirmDialog(null);
-                                                                                window.location.reload();
-                                                                            } catch (error) {
-                                                                                console.error('❌ 清除失败:', error);
-                                                                                setConfirmDialog({
-                                                                                    isOpen: true,
-                                                                                    title: t('chat.clearCacheFailed'),
-                                                                                    message: String(error),
-                                                                                    onConfirm: () => setConfirmDialog(null)
-                                                                                });
-                                                                            }
-                                                                        } else {
-                                                                            // 非内置模型：使用标准删除方法
-                                                                            engineStore.deleteWebLLMModel(modelInfo.model_id);
-                                                                        }
-                                                                    }
-                                                                });
-                                                            }}
-                                                            style={{
-                                                                padding: '8px',
-                                                                color: 'var(--text-secondary)',
-                                                                background: 'transparent',
-                                                                border: 'none',
-                                                                borderRadius: '6px',
-                                                                cursor: 'pointer',
-                                                                transition: 'all 0.2s',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center'
-                                                            }}
-                                                            onMouseEnter={(e) => {
-                                                                e.currentTarget.style.color = '#ff453a';
-                                                                e.currentTarget.style.background = 'rgba(255, 69, 58, 0.1)';
-                                                            }}
-                                                            onMouseLeave={(e) => {
-                                                                e.currentTarget.style.color = 'var(--text-secondary)';
-                                                                e.currentTarget.style.background = 'transparent';
-                                                            }}
-                                                        >
-                                                            <Trash2 size={18} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            </div>
-                        )}
 
                         {/* Ollama 内容 */}
                         {engineStore.currentEngine === 'ollama' && (
@@ -853,7 +462,7 @@ export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: Sett
 
             case 'persona':
                 // 根据当前语言和等级获取默认提示词
-                const defaultPromptForLang = getDefaultSystemPrompt(currentLang, promptLevel);
+                const defaultPromptForLang = getDefaultSystemPrompt('en', promptLevel);
                 // 获取当前显示的提示词：如果用户设置了则显示用户的，否则显示内置默认
                 const displayPrompt = settings.systemPrompt || defaultPromptForLang;
                 const isCustomized = settings.systemPrompt && settings.systemPrompt.trim() !== '';
@@ -1289,11 +898,6 @@ export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: Sett
                             <h3 className="settings-section-title">{t('settings.credits.title')}</h3>
                             <div className="guide-credits">
                                 <p className="credit-item">
-                                    <strong>WebLLM</strong> - {t('settings.credits.webllmDesc')}<br />
-                                    <a href="https://github.com/mlc-ai/web-llm" target="_blank" rel="noopener noreferrer">github.com/mlc-ai/web-llm</a><br />
-                                    <span className="license-tag">Apache License 2.0</span>
-                                </p>
-                                <p className="credit-item">
                                     <strong>Ollama</strong> - {t('settings.credits.ollamaDesc')}<br />
                                     <a href="https://github.com/ollama/ollama" target="_blank" rel="noopener noreferrer">github.com/ollama/ollama</a><br />
                                     <span className="license-tag">MIT License</span>
@@ -1388,7 +992,7 @@ export function Settings({ isOpen, onClose, llm, defaultTab, engineStore }: Sett
                             ],
                             onConfirm: async () => {
                                 await resetSettings();
-                                engineStore.setEngine('webllm');
+                                engineStore.setEngine('ollama');
                                 setConfirmDialog(null);
                             }
                         });

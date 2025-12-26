@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { Send, Square, Sparkles, Check, Bot, Server, Cloud, X } from 'lucide-react'
+import { Send, Square, Sparkles, Check, Server, Cloud } from 'lucide-react'
 import { ChatMessage, RECOMMENDED_MODELS } from '../services/types'
-import { ALL_WEBLLM_MODELS_INFO } from '../engines/webllmModels'
 import { UseLLMReturn } from '../hooks/useLLM'
 import { UseEngineStoreReturn } from '../store/engineStore'
 import { marked } from 'marked'
@@ -143,104 +142,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm, engineStore, openSett
         return size ? `${base} ${size.toUpperCase()}` : base
     }
 
-
-    // WebLLM 首次使用提示显示状态
-    const showWebLLMSetup = engineStore?.currentEngine === 'webllm' &&
-        !engineStore.webllmReady &&
-        engineStore.webllmFirstTimeSetup &&
-        !engineStore.webllmLoading;
-
     return (
         <div className="chat-panel-v2">
             {/* 消息区域 - 添加 relative 定位限制覆盖层范围 */}
             <div className="chat-messages" style={{ position: 'relative' }}>
-                {/* WebLLM 首次使用提示 */}
-                {showWebLLMSetup && (
-                    <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        background: 'var(--bg-primary)',
-                        zIndex: 10,
-                        flexDirection: 'column'
-                    }}>
-                        <div style={{
-                            width: '64px',
-                            height: '64px',
-                            borderRadius: '16px',
-                            background: 'var(--bg-secondary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginBottom: '24px',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-                        }}>
-                            <Server size={32} style={{ color: 'var(--accent-color)' }} />
-                        </div>
-
-                        <h3 style={{
-                            fontSize: '20px',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            marginBottom: '12px',
-                            marginTop: 0
-                        }}>{t('chat.firstUseTitle')}</h3>
-
-                        <p style={{
-                            fontSize: '14px',
-                            color: 'var(--text-secondary)',
-                            lineHeight: '1.6',
-                            marginBottom: '32px',
-                            marginTop: 0,
-                            textAlign: 'center',
-                            maxWidth: '300px'
-                        }}>
-                            <span dangerouslySetInnerHTML={{
-                                __html: t('chat.firstUseDesc', { size: ALL_WEBLLM_MODELS_INFO[0]?.size || '290MB' }).replace('\n', '<br />')
-                            }} />
-                        </p>
-
-                        <button
-                            onClick={() => {
-                                engineStore.completeWebLLMSetup();
-                                engineStore.initWebLLM(engineStore.selectedModel);
-                            }}
-                            style={{
-                                padding: '10px 24px',
-                                background: 'var(--accent-color)',
-                                color: '#ffffff',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontSize: '14px',
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.opacity = '0.9';
-                                e.currentTarget.style.transform = 'translateY(-1px)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.opacity = '1';
-                                e.currentTarget.style.transform = 'translateY(0)';
-                            }}
-                        >
-                            <Cloud size={16} />
-                            {t('chat.startDownload')}
-                        </button>
-                    </div>
-                )}
-
-                {messages.length === 0 && !showWebLLMSetup ? (
+                {messages.length === 0 ? (
                     <div className="chat-empty">
                         <Sparkles size={32} strokeWidth={1.2} />
                         <p>{t('chat.title')}</p>
@@ -299,12 +205,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm, engineStore, openSett
                                         e.currentTarget.style.borderColor = 'var(--border-color)'
                                     }}
                                 >
-                                    {engineStore.currentEngine === 'webllm' && (
-                                        <>
-                                            <Bot size={14} />
-                                            <span>{t('chat.engineWebLLMShort')}</span>
-                                        </>
-                                    )}
                                     {engineStore.currentEngine === 'ollama' && (
                                         <>
                                             <Server size={14} />
@@ -336,7 +236,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm, engineStore, openSett
                                     >
                                         <div className="model-section-title">{t('chat.aiEngine')}</div>
                                         {[
-                                            { type: 'webllm' as const, icon: <Bot size={14} />, label: t('chat.engineWebLLM'), bgColor: 'rgba(16, 185, 129, 0.08)' },
                                             { type: 'ollama' as const, icon: <Server size={14} />, label: t('chat.engineOllama'), bgColor: 'rgba(245, 158, 11, 0.08)' },
                                             { type: 'openai' as const, icon: <Cloud size={14} />, label: t('chat.engineCloud'), bgColor: 'rgba(59, 130, 246, 0.08)' }
                                         ].map((engine) => (
@@ -345,20 +244,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm, engineStore, openSett
                                                 onClick={(e) => {
                                                     e.stopPropagation()
                                                     engineStore.setEngine(engine.type)
-
-
-                                                    // WebLLM 自动初始化逻辑
-                                                    // 只有在非首次使用时才自动加载
-                                                    if (engine.type === 'webllm') {
-                                                        const savedModel = localStorage.getItem('zen-selected-webllm-model')
-                                                        const targetModel = savedModel || ALL_WEBLLM_MODELS_INFO[0]?.model_id
-
-                                                        if (!engineStore.webllmReady && !engineStore.webllmLoading && !engineStore.webllmFirstTimeSetup && targetModel) {
-                                                            engineStore.initWebLLM(targetModel)
-                                                        }
-                                                    }
-
-
                                                     setShowEngineMenu(false)
                                                 }}
                                                 style={{
@@ -629,54 +514,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm, engineStore, openSett
                                         document.body
                                     )}
                                 </div>
-                            ) : engineStore?.currentEngine === 'webllm' ? (
-                                (() => {
-                                    const modelInfo = ALL_WEBLLM_MODELS_INFO.find(
-                                        m => m.model_id === engineStore.selectedModel
-                                    ) || ALL_WEBLLM_MODELS_INFO[0];
-
-                                    return (
-                                        <div className="model-display-card" style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            padding: '6px 10px',
-                                            background: 'var(--bg-hover)',
-                                            border: '1px solid var(--border-color)',
-                                            borderRadius: '6px'
-                                        }}>
-
-                                            <span className="model-display-name" style={{
-                                                fontSize: '12px',
-                                                fontWeight: 600,
-                                                color: 'var(--text-primary)'
-                                            }}>
-                                                {modelInfo.displayName}
-                                            </span>
-                                            <span className="model-display-size" style={{
-                                                fontSize: '11px',
-                                                fontWeight: 500,
-                                                color: 'var(--text-secondary)',
-                                                padding: '2px 6px',
-                                                background: 'var(--bg-card)',
-                                                borderRadius: '4px'
-                                            }}>
-                                                {modelInfo.size}
-                                            </span>
-                                            <span className="model-display-badge" style={{
-                                                fontSize: '11px',
-                                                fontWeight: 500,
-                                                color: '#10b981',
-                                                padding: '2px 6px',
-                                                background: 'rgba(16, 185, 129, 0.1)',
-                                                borderRadius: '4px'
-                                            }}>
-                                                {t('chat.builtIn')}
-                                            </span>
-
-                                        </div>
-                                    );
-                                })()
                             ) : engineStore?.currentEngine === 'openai' ? (
                                 <div className="model-display-card" style={{
                                     display: 'flex',
@@ -723,37 +560,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ llm, engineStore, openSett
                                         </div>
                                     )}
                                 </div>
-                                {/* 取消按钮 - 仅在 WebLLM 下载时显示 */}
-                                {engineStore?.currentEngine === 'webllm' && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setConfirmDialog({
-                                                isOpen: true,
-                                                title: t('chat.confirmCancelDownloadTitle'),
-                                                message: t('chat.confirmCancelDownloadMessage'),
-                                                onConfirm: () => {
-                                                    engineStore?.resetWebLLMSetup();
-                                                    setConfirmDialog(null);
-                                                }
-                                            });
-                                        }}
-                                        title={t('models.cancelDownload')}
-                                        style={{
-                                            padding: '4px',
-                                            borderRadius: '50%',
-                                            border: 'none',
-                                            background: 'var(--bg-hover)',
-                                            color: 'var(--text-secondary)',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}
-                                    >
-                                        <X size={14} />
-                                    </button>
-                                )}
                             </div>
                         ) : null}
                     </div>

@@ -113,22 +113,6 @@ export function useLLM(engineStore: UseEngineStoreReturn): UseLLMReturn {
     // 动态状态映射（根据引擎类型）
     useEffect(() => {
         switch (engineStore.currentEngine) {
-            case 'webllm':
-                if (engineStore.error) {
-                    setStatus('error');
-                    setErrorMessage(engineStore.error);
-                } else {
-                    setStatus(engineStore.webllmReady ? 'ready' : engineStore.webllmLoading ? 'loading' : 'detecting');
-                    setErrorMessage(null);
-                }
-                setModelName(engineStore.selectedModel);
-                // Map WebLLM progress to LoadProgress format
-                setLoadProgress(engineStore.webllmProgress ? {
-                    progress: engineStore.webllmProgress.progress,
-                    text: engineStore.webllmProgress.text,
-                    stage: 'download' // WebLLM is always downloading/loading
-                } : null);
-                break;
             case 'ollama':
                 setStatus(engineStore.ollamaAvailable ? 'ready' : 'detecting');
                 setModelName(engineStore.selectedModel);
@@ -145,9 +129,6 @@ export function useLLM(engineStore: UseEngineStoreReturn): UseLLMReturn {
         }
     }, [
         engineStore.currentEngine,
-        engineStore.webllmReady,
-        engineStore.webllmLoading,
-        engineStore.webllmProgress,
         engineStore.error, // Listen to engine error changes
         engineStore.ollamaAvailable,
         engineStore.ollamaModels,
@@ -370,26 +351,6 @@ export function useLLM(engineStore: UseEngineStoreReturn): UseLLMReturn {
         setErrorMessage(null);
 
         switch (engineStore.currentEngine) {
-            case 'webllm':
-                // WebLLM 由 engineStore 自动管理，这里只更新状态
-                if (engineStore.webllmReady) {
-                    setStatus('ready');
-                    console.log('✅ WebLLM 已就绪');
-                } else if (engineStore.webllmLoading) {
-                    setStatus('loading');
-                    console.log('⏳ WebLLM 正在加载...');
-                } else if (!engineStore.webllmFirstTimeSetup) {
-                    // 只有在非首次使用时才自动初始化（已有缓存）
-                    setStatus('detecting');
-                    console.log('🚀 触发 WebLLM 初始化（已有缓存）');
-                    await engineStore.initWebLLM();
-                } else {
-                    // 首次使用，等待用户点击下载按钮
-                    setStatus('detecting');
-                    console.log('⏸️ 首次使用，等待用户确认下载');
-                }
-                break;
-
             case 'ollama':
                 // Ollama 检测逻辑
                 setStatus('detecting');
@@ -582,8 +543,8 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
         let systemContent = getSystemPrompt();
 
         // 对于 Cloud API (如 ChatGPT)，Context 放在 System Prompt 中效果较好
-        // 对于本地小模型 (WebLLM/Ollama)，放在 User Prompt 中往往被注视得更多
-        const isSmallModel = engineStore.currentEngine === 'webllm' || engineStore.currentEngine === 'ollama';
+        // 对于本地小模型 (Ollama)，放在 User Prompt 中往往被注视得更多
+        const isSmallModel = engineStore.currentEngine === 'ollama';
 
         if (!isSmallModel) {
             if (contextInfo) systemContent += '\n\n' + contextInfo;
@@ -673,89 +634,6 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
         try {
             // 根据当前引擎调度
             switch (engineStore.currentEngine) {
-                case 'webllm': {
-                    // WebLLM 引擎 - 尝试重新初始化以避免 BindingError
-                    const engine = engineStore.getEngine();
-                    if (!engine || !engineStore.webllmReady) {
-                        throw new Error('WebLLM 引擎未就绪');
-                    }
-                    try {
-                        // 获取最新用户消息
-                        const lastUserMessage = llmMessages.filter(m => m.role === 'user').pop();
-                        if (!lastUserMessage) {
-                            throw new Error('没有用户消息');
-                        }
-
-
-                        // 修正：使用构建好的完整消息历史 (包含 injected context)，而不是只发送单条 prompt
-                        // 这确保模型能看到文件上下文
-                        // 同时调用 resetChat() 确保状态干净 (或者让 engine 自动管理，WebLLM 通常会自动处理)
-                        // 但为了安全，如果 engine 是 stateful 的，我们应该传递完整 history 并让它处理
-
-                        // 使用 forwardTokensAndSample 或 chat.completions
-                        let response = '';
-                        try {
-                            // 先尝试流式生成
-                            const chunks = await engine.chat.completions.create({
-                                messages: llmMessages, // <--- 使用完整历史，包含 system prompt 和 context
-                                stream: false,
-                                max_tokens: 512
-                            });
-                            response = chunks.choices?.[0]?.message?.content || '';
-                        } catch (chatError) {
-                            // 如果 chat API 失败，尝试直接 generate
-                            console.warn('chat.completions 失败，尝试 generate:', chatError);
-                            if (engine.generate) {
-                                response = await engine.generate(String(prompt));
-                            } else {
-                                throw chatError;
-                            }
-                        }
-
-                        onToken(response);
-                        onComplete();
-                    } catch (webllmError) {
-                        const errorMsg = webllmError instanceof Error ? webllmError.message : String(webllmError);
-                        console.error('WebLLM 内部错误:', webllmError);
-
-                        // 检测"模型未加载"错误并提示重新初始化
-                        if (errorMsg.includes('Model not loaded') || errorMsg.includes('not loaded before')) {
-                            throw new Error('WebLLM 内部错误，请刷新页面或尝试重新加载模型');
-                        }
-
-
-                        // BindingError 是 MLC 库的已知问题
-
-                        // BindingError 是 MLC 库的已知问题
-                        if (errorMsg.includes('BindingError') || errorMsg.includes('VectorInt')) {
-                            console.log('🔄 检测到 WebLLM BindingError，报告严重错误...');
-                            const friendlyError = 'WebLLM 内部错误，请尝试点击"重新下载模型"';
-
-                            // 报告错误给 store，这会更新全局状态
-                            engineStore.reportError(friendlyError);
-                            setErrorMessage(friendlyError);
-
-                            // 停止生成状态
-                            setIsGenerating(false);
-
-                            // 更新最后一条消息显示错误和建议
-                            setMessages(prev => {
-                                const updated = [...prev];
-                                const lastMsg = updated[updated.length - 1];
-                                if (lastMsg && lastMsg.role === 'assistant') {
-                                    lastMsg.content = `❌ WebLLM 内部错误: ${errorMsg}\n\n建议尝试重新下载模型。`;
-                                    lastMsg.isStreaming = false;
-                                }
-                                return updated;
-                            });
-
-                            throw new Error(friendlyError);
-                        }
-                        throw new Error(`WebLLM 错误: ${errorMsg}`);
-                    }
-                    break;
-                }
-
                 case 'ollama': {
                     // Ollama 引擎
                     if (!ollamaServiceRef.current) {
@@ -826,13 +704,6 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
 
         // 根据当前引擎调用不同的中止方法
         switch (engineStore.currentEngine) {
-            case 'webllm': {
-                const engine = engineStore.getEngine();
-                if (engine && engine.interruptGenerate) {
-                    engine.interruptGenerate();
-                }
-                break;
-            }
             case 'ollama': {
                 if (ollamaServiceRef.current) {
                     ollamaServiceRef.current.abort();
@@ -860,20 +731,7 @@ ${fileListWithPreviews}${hasMore ? '\n... (更多文章)' : ''}`;
      * 重新下载当前 WebLLM 模型
      */
     const redownloadModel = useCallback(async () => {
-        if (engineStore.currentEngine !== 'webllm' || !engineStore.selectedModel) return;
-
-        console.log('🔄 开始重新下载模型:', engineStore.selectedModel);
-
-        try {
-            // 1. 删除缓存
-            await engineStore.deleteWebLLMModel(engineStore.selectedModel);
-
-            // 2. 重新初始化（会触发下载）
-            await engineStore.initWebLLM(engineStore.selectedModel);
-        } catch (error) {
-            console.error('重新下载失败:', error);
-            setErrorMessage('重新下载失败: ' + (error instanceof Error ? error.message : String(error)));
-        }
+        // WebLLM 逻辑已移除
     }, [engineStore]);
 
     /**

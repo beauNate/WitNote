@@ -1,14 +1,13 @@
 /**
- * Engine Store - 三引擎状态管理
- * 管理 WebLLM, Ollama, Cloud API 三种引擎的状态
+ * Engine Store - 双引擎状态管理
+ * 管理 Ollama, Cloud API 两种引擎的状态
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { OpenAIEngine, CloudConfig, DEFAULT_CLOUD_CONFIG } from '../engines/OpenAIEngine';
-import { DEFAULT_WEBLLM_MODEL } from '../engines/webllmModels';
 import { OllamaModel } from '../services/types';
 
-export type EngineType = 'webllm' | 'ollama' | 'openai';
+export type EngineType = 'ollama' | 'openai';
 
 export interface OllamaConfig {
     host: string;
@@ -18,13 +17,6 @@ export interface OllamaConfig {
 export interface EngineState {
     currentEngine: EngineType;
     selectedModel: string;
-
-    // WebLLM 状态
-    webllmReady: boolean;
-    webllmLoading: boolean;
-    webllmProgress: { progress: number; text: string } | null;
-    webllmCachedModels: string[];
-    webllmFirstTimeSetup: boolean; // 是否显示首次设置提示
 
     // Ollama 状态
     ollamaAvailable: boolean;
@@ -44,14 +36,6 @@ export interface UseEngineStoreReturn extends EngineState {
     setEngine: (engine: EngineType) => void;
     selectModel: (modelId: string) => void;
 
-    // WebLLM
-    initWebLLM: (modelId?: string) => Promise<void>;
-    refreshWebLLMCache: () => Promise<void>;
-    deleteWebLLMModel: (modelId: string) => Promise<void>;
-    clearAllWebLLMCache: () => Promise<void>;
-    completeWebLLMSetup: () => void; // 完成首次设置
-    resetWebLLMSetup: () => void; // 重置首次设置（取消下载）
-
     // Ollama
     updateOllamaConfig: (config: Partial<OllamaConfig>) => void;
     refreshOllamaStatus: () => Promise<void>;
@@ -70,16 +54,20 @@ export interface UseEngineStoreReturn extends EngineState {
 const STORAGE_KEYS = {
     ENGINE: 'zen-ai-engine',
     MODEL: 'zen-selected-model',
-    WEBLLM_MODEL: 'zen-selected-webllm-model',
     OLLAMA_MODEL: 'zen-selected-ollama-model',
     OLLAMA: 'zen-ollama-config',
     CLOUD: 'zen-cloud-config'
 };
 
 export function useEngineStore(): UseEngineStoreReturn {
-    // 从 localStorage 恢复配置（默认使用 Ollama，WebLLM 有已知问题）
-    const savedEngine = (localStorage.getItem(STORAGE_KEYS.ENGINE) as EngineType) || 'webllm';
-    const savedModel = localStorage.getItem(STORAGE_KEYS.MODEL) || DEFAULT_WEBLLM_MODEL;
+    // 从 localStorage 恢复配置（默认使用 Ollama）
+    // 如果之前保存的是 webllm，强制转为 ollama
+    let savedEngine = (localStorage.getItem(STORAGE_KEYS.ENGINE) as EngineType) || 'ollama';
+    if (savedEngine === 'webllm' as any) {
+        savedEngine = 'ollama';
+    }
+
+    const savedModel = localStorage.getItem(STORAGE_KEYS.MODEL) || '';
     const savedOllamaConfig: OllamaConfig = JSON.parse(
         localStorage.getItem(STORAGE_KEYS.OLLAMA) || '{"host":"127.0.0.1","port":11434}'
     );
@@ -90,11 +78,6 @@ export function useEngineStore(): UseEngineStoreReturn {
     const [state, setState] = useState<EngineState>({
         currentEngine: savedEngine,
         selectedModel: savedModel,
-        webllmReady: false,
-        webllmLoading: false,
-        webllmProgress: null,
-        webllmCachedModels: [],
-        webllmFirstTimeSetup: !localStorage.getItem('webllm-setup-completed'),
         ollamaAvailable: false,
         ollamaConfig: savedOllamaConfig,
         ollamaModels: [],
@@ -106,19 +89,14 @@ export function useEngineStore(): UseEngineStoreReturn {
 
     // 引擎实例引用
     const openaiEngineRef = useRef<OpenAIEngine | null>(null);
-    const webllmEngineRef = useRef<any>(null);
-    // 初始化锁（使用 ref 而非 state，确保同步检查，防止 React Strict Mode 下的重复初始化）
-    const webllmInitLockRef = useRef<boolean>(false);
 
     // 设置引擎
     const setEngine = useCallback((engine: EngineType) => {
         localStorage.setItem(STORAGE_KEYS.ENGINE, engine);
 
         // 切换引擎时，恢复该引擎上次使用的模型
-        let modelToRestore = DEFAULT_WEBLLM_MODEL;
-        if (engine === 'webllm') {
-            modelToRestore = localStorage.getItem(STORAGE_KEYS.WEBLLM_MODEL) || DEFAULT_WEBLLM_MODEL;
-        } else if (engine === 'ollama') {
+        let modelToRestore = '';
+        if (engine === 'ollama') {
             // 如果只有 null，可以保留当前选中（但风险是当前选中可能是 webllm 的），或者用第一个 found model
             modelToRestore = localStorage.getItem(STORAGE_KEYS.OLLAMA_MODEL) || '';
         } else if (engine === 'openai') {
@@ -138,237 +116,12 @@ export function useEngineStore(): UseEngineStoreReturn {
         localStorage.setItem(STORAGE_KEYS.MODEL, modelId);
 
         // 分别存储引擎的模型选择
-        if (state.currentEngine === 'webllm') {
-            localStorage.setItem(STORAGE_KEYS.WEBLLM_MODEL, modelId);
-        } else if (state.currentEngine === 'ollama') {
+        if (state.currentEngine === 'ollama') {
             localStorage.setItem(STORAGE_KEYS.OLLAMA_MODEL, modelId);
         }
 
         setState(prev => ({ ...prev, selectedModel: modelId }));
     }, [state.currentEngine]);
-
-    // 初始化 WebLLM
-    const initWebLLM = useCallback(async (modelId?: string) => {
-        // 使用 ref 作为初始化锁（同步检查），防止 React Strict Mode 下的并发初始化
-        if (webllmInitLockRef.current) {
-            console.log('⚠️ WebLLM 正在初始化中（锁定），跳过...');
-            return;
-        }
-
-        // 立即设置锁（同步操作）
-        webllmInitLockRef.current = true;
-        console.log('🔒 WebLLM 初始化锁已设置');
-
-        // 确定目标模型：优先使用传入的 modelId，否则使用 selectedModel
-        // 但需要验证是否为有效的 WebLLM 模型格式
-        let targetModel = modelId || state.selectedModel;
-
-        // 验证是否为有效的 WebLLM 模型（防止使用 Ollama 格式的模型名）
-        // WebLLM 模型格式通常包含 "MLC" 字样，Ollama 格式是 "name:tag"
-        const isValidWebLLMModel = targetModel && (
-            targetModel.includes('-MLC') ||
-            targetModel === DEFAULT_WEBLLM_MODEL
-        );
-
-        if (!isValidWebLLMModel) {
-            console.warn(`⚠️ 模型名称 "${targetModel}" 不是有效的 WebLLM 格式，使用默认模型`);
-            targetModel = DEFAULT_WEBLLM_MODEL;
-        }
-
-        // 取消之前的下载
-        if (webllmEngineRef.current?.abort) {
-            webllmEngineRef.current.abort();
-        }
-
-        setState(prev => ({
-            ...prev,
-            webllmLoading: true,
-            webllmReady: false,
-            webllmProgress: { progress: 0, text: '初始化中...' },
-            selectedModel: targetModel,
-            error: null // 清除之前的错误
-        }));
-
-        try {
-            // 动态导入 WebLLM
-            const { CreateMLCEngine, prebuiltAppConfig } = await import('@mlc-ai/web-llm');
-
-            // 确保之前的引擎已卸载
-            if (webllmEngineRef.current && webllmEngineRef.current.unload) {
-                await webllmEngineRef.current.unload();
-            }
-
-            console.log('🚀 WebLLM 初始化:', { targetModel });
-
-            // 使用 WebLLM 预置配置
-            // 首次从 HuggingFace 下载模型并缓存，之后可离线使用
-            const engine = await CreateMLCEngine(targetModel, {
-                appConfig: prebuiltAppConfig,
-                initProgressCallback: (progress) => {
-                    setState(prev => ({
-                        ...prev,
-                        webllmProgress: {
-                            progress: progress.progress,
-                            text: progress.text
-                        }
-                    }));
-                }
-            });
-
-            webllmEngineRef.current = engine;
-            localStorage.setItem(STORAGE_KEYS.MODEL, targetModel);
-
-            // 预热引擎，确保 Tokenizer 的 WASM 绑定完全就绪
-            // 增加重试机制，解决"第一句话总是失败"的问题
-            const MAX_WARMUP_RETRIES = 3;
-            let warmupSuccess = false;
-
-            for (let attempt = 1; attempt <= MAX_WARMUP_RETRIES; attempt++) {
-                // 每次重试前等待更长时间，给 WASM 绑定更多初始化时间
-                const waitTime = attempt * 1000; // 1秒, 2秒, 3秒
-                console.log(`🔥 预热 WebLLM 引擎 (尝试 ${attempt}/${MAX_WARMUP_RETRIES})，等待 ${waitTime}ms...`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-
-                try {
-                    await engine.chat.completions.create({
-                        messages: [{ role: 'user', content: 'hi' }],
-                        max_tokens: 1
-                    });
-                    console.log('✅ WebLLM 引擎预热成功');
-                    // 预热后重置聊天状态，清除 KV Cache，避免影响后续对话
-                    await engine.resetChat();
-                    warmupSuccess = true;
-                    break; // 成功则退出重试循环
-                } catch (warmupError) {
-                    console.warn(`⚠️ WebLLM 预热失败 (尝试 ${attempt}/${MAX_WARMUP_RETRIES}):`, warmupError);
-                    if (attempt === MAX_WARMUP_RETRIES) {
-                        console.warn('⚠️ 所有预热尝试均失败，但引擎仍可能可用');
-                    }
-                }
-            }
-
-            console.log(`🏁 WebLLM 初始化完成，预热状态: ${warmupSuccess ? '成功' : '失败但继续'}`);
-
-            // 释放初始化锁
-            webllmInitLockRef.current = false;
-            console.log('🔓 WebLLM 初始化锁已释放');
-
-            setState(prev => ({
-                ...prev,
-                webllmLoading: false,
-                webllmReady: true,
-                webllmProgress: null,
-                selectedModel: targetModel
-            }));
-
-            // 刷新缓存列表以便 UI 立即显示已下载状态
-            setTimeout(async () => {
-                if ('caches' in window) {
-                    const cacheNames = await caches.keys();
-                    const webllmCaches = cacheNames.filter(name =>
-                        name.includes('webllm') || name.includes('mlc')
-                    );
-                    setState(prev => ({ ...prev, webllmCachedModels: webllmCaches }));
-                }
-            }, 100);
-        } catch (error) {
-            console.error('WebLLM 初始化失败:', error);
-            // 释放初始化锁
-            webllmInitLockRef.current = false;
-            console.log('🔓 WebLLM 初始化锁已释放（失败）');
-
-            setState(prev => ({
-                ...prev,
-                webllmLoading: false,
-                webllmReady: false,
-                webllmProgress: null,
-                error: error instanceof Error ? error.message : '初始化失败'
-            }));
-        }
-    }, [state.selectedModel]);
-
-    // 刷新 WebLLM 缓存列表
-    const refreshWebLLMCache = useCallback(async () => {
-        try {
-            if ('caches' in window) {
-                const cacheNames = await caches.keys();
-                const webllmCaches = cacheNames.filter(name =>
-                    name.includes('webllm') || name.includes('mlc')
-                );
-                setState(prev => ({ ...prev, webllmCachedModels: webllmCaches }));
-            }
-        } catch (e) {
-            console.warn('无法读取缓存:', e);
-        }
-    }, []);
-
-    // 删除 WebLLM 模型缓存
-    const deleteWebLLMModel = useCallback(async (modelId: string) => {
-        try {
-            if ('caches' in window) {
-                const cacheNames = await caches.keys();
-                for (const name of cacheNames) {
-                    if (name.includes(modelId) || name.includes('webllm')) {
-                        await caches.delete(name);
-                    }
-                }
-                await refreshWebLLMCache();
-            }
-        } catch (e) {
-            console.error('删除缓存失败:', e);
-        }
-    }, [refreshWebLLMCache]);
-
-    // 清理所有 WebLLM 缓存
-    const clearAllWebLLMCache = useCallback(async () => {
-        try {
-            if ('caches' in window) {
-                const cacheNames = await caches.keys();
-                for (const name of cacheNames) {
-                    if (name.includes('webllm') || name.includes('mlc') || name.includes('wasm')) {
-                        await caches.delete(name);
-                        console.log('🗑️ 删除缓存:', name);
-                    }
-                }
-                // 同时清理 IndexedDB
-                const databases = await indexedDB.databases();
-                for (const db of databases) {
-                    if (db.name && (db.name.includes('webllm') || db.name.includes('mlc'))) {
-                        indexedDB.deleteDatabase(db.name);
-                        console.log('🗑️ 删除 IndexedDB:', db.name);
-                    }
-                }
-                setState(prev => ({ ...prev, webllmCachedModels: [], webllmReady: false }));
-                webllmEngineRef.current = null;
-                console.log('✅ WebLLM 缓存已清理');
-            }
-        } catch (e) {
-            console.error('清理缓存失败:', e);
-        }
-    }, []);
-
-    // 完成首次设置
-    const completeWebLLMSetup = useCallback(() => {
-        localStorage.setItem('webllm-setup-completed', 'true');
-        setState(prev => ({ ...prev, webllmFirstTimeSetup: false }));
-    }, []);
-
-    // 重置 WebLLM 首次设置
-    const resetWebLLMSetup = useCallback(() => {
-        // Assuming `isMas` is defined in the scope if needed, otherwise remove.
-        // if (isMas) return; 
-        localStorage.removeItem('webllm-setup-completed');
-        setState(prev => ({
-            ...prev,
-            webllmFirstTimeSetup: true,
-            webllmLoading: false,
-            webllmProgress: null,
-            webllmReady: false,
-            error: null
-        }));
-        // 如果可能，重新加载页面以确保 WebLLM 引擎完全重置
-        window.location.reload();
-    }, []);
 
     // 更新 Ollama 配置
     const updateOllamaConfig = useCallback((config: Partial<OllamaConfig>) => {
@@ -450,8 +203,6 @@ export function useEngineStore(): UseEngineStoreReturn {
     // 获取当前引擎实例
     const getEngine = useCallback(() => {
         switch (state.currentEngine) {
-            case 'webllm':
-                return webllmEngineRef.current;
             case 'openai':
                 if (!openaiEngineRef.current) {
                     openaiEngineRef.current = new OpenAIEngine(state.cloudConfig);
@@ -466,8 +217,6 @@ export function useEngineStore(): UseEngineStoreReturn {
     const reportError = useCallback((errorMessage: string) => {
         setState(prev => ({
             ...prev,
-            webllmReady: false,
-            webllmLoading: false,
             error: errorMessage
         }));
     }, []);
@@ -476,7 +225,6 @@ export function useEngineStore(): UseEngineStoreReturn {
     useEffect(() => {
         const init = async () => {
             await refreshOllamaStatus();
-            await refreshWebLLMCache();
             setState(prev => ({ ...prev, isLoading: false }));
         };
         init();
@@ -486,13 +234,6 @@ export function useEngineStore(): UseEngineStoreReturn {
     useEffect(() => {
         const initEngine = async () => {
             switch (state.currentEngine) {
-                case 'webllm':
-                    // WebLLM: 只有在非首次使用（已有缓存）时才自动初始化
-                    // 首次使用时，等待用户点击下载按钮
-                    if (!state.webllmReady && state.selectedModel && !state.webllmFirstTimeSetup) {
-                        await initWebLLM(state.selectedModel);
-                    }
-                    break;
                 case 'ollama':
                     // Ollama: 刷新状态（已在初始化时完成）
                     break;
@@ -510,18 +251,12 @@ export function useEngineStore(): UseEngineStoreReturn {
             }
         };
         initEngine();
-    }, [state.currentEngine, state.selectedModel, state.webllmReady, state.cloudConfig.apiKey, initWebLLM]);
+    }, [state.currentEngine, state.selectedModel, state.cloudConfig.apiKey]);
 
     return {
         ...state,
         setEngine,
         selectModel,
-        initWebLLM,
-        refreshWebLLMCache,
-        deleteWebLLMModel,
-        clearAllWebLLMCache,
-        completeWebLLMSetup,
-        resetWebLLMSetup,
         updateOllamaConfig,
         refreshOllamaStatus,
         updateCloudConfig,

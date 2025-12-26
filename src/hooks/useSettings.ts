@@ -40,7 +40,6 @@ export const PRESET_ROLES: PresetRole[] = [
 // 应用设置
 export interface AppSettings {
     // 外观
-    theme: 'light' | 'dark' | 'tea';
     fontFamily: 'system' | 'serif';
     fontSize: number; // 12-18
 
@@ -49,7 +48,7 @@ export interface AppSettings {
     ollamaEnabled: boolean;
 
     // AI 策略
-    preferredEngine: 'ollama' | 'webllm';
+    preferredEngine: 'ollama';
     autoFallback: boolean;
 
     // 角色设定 - 可编辑的系统提示词（默认使用内置提示词）
@@ -64,7 +63,6 @@ export interface AppSettings {
 // 默认设置
 export const DEFAULT_SETTINGS: AppSettings = {
     // 外观
-    theme: 'tea',
     fontFamily: 'system',
     fontSize: 17,
 
@@ -72,7 +70,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     ollamaBaseUrl: 'http://localhost:11434',
     ollamaEnabled: true,
 
-    // AI 策略 - 默认使用内置 WebLLM 引擎
+    // AI 策略 - 默认使用 Ollama
     preferredEngine: 'ollama',
     autoFallback: true,
 
@@ -94,9 +92,6 @@ export interface UseSettingsReturn {
     setSettings: (updates: Partial<AppSettings>) => Promise<void>;
     resetSettings: () => Promise<void>;
 
-    // 主题快捷方法
-    setTheme: (theme: AppSettings['theme']) => Promise<void>;
-
     // Ollama 快捷方法
     setOllamaUrl: (url: string) => Promise<void>;
     testOllamaConnection: () => Promise<boolean>;
@@ -114,15 +109,6 @@ function generateId(): string {
 
 export function useSettings(): UseSettingsReturn {
     const [settings, setSettingsState] = useState<AppSettings>(() => {
-        // 尝试从缓存读取主题，作为初始状态
-        try {
-            const cachedTheme = localStorage.getItem('zen-theme-cache');
-            if (cachedTheme && ['light', 'dark', 'tea'].includes(cachedTheme)) {
-                return { ...DEFAULT_SETTINGS, theme: cachedTheme as any };
-            }
-        } catch (e) {
-            // ignore
-        }
         return DEFAULT_SETTINGS;
     });
     const [isLoading, setIsLoading] = useState(true);
@@ -135,10 +121,6 @@ export function useSettings(): UseSettingsReturn {
                     const stored = await window.settings.get();
                     if (stored) {
                         setSettingsState({ ...DEFAULT_SETTINGS, ...stored });
-                        // 同步缓存：确保现有用户的配置也能写入缓存
-                        if (stored.theme) {
-                            localStorage.setItem('zen-theme-cache', stored.theme as string);
-                        }
                     }
                 }
             } catch (error) {
@@ -150,11 +132,6 @@ export function useSettings(): UseSettingsReturn {
 
         loadSettings();
     }, []);
-
-    // 应用主题到 DOM
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', settings.theme);
-    }, [settings.theme]);
 
     // 应用字体设置到 DOM
     useEffect(() => {
@@ -185,11 +162,6 @@ export function useSettings(): UseSettingsReturn {
         value: AppSettings[K]
     ) => {
         setSettingsState(prev => ({ ...prev, [key]: value }));
-
-        // 如果是设置主题，同时缓存到 localStorage，确保下次启动时不闪烁
-        if (key === 'theme') {
-            localStorage.setItem('zen-theme-cache', value as string);
-        }
 
         // 派发自定义事件通知其他组件
         window.dispatchEvent(new CustomEvent('settings-changed', {
@@ -230,11 +202,6 @@ export function useSettings(): UseSettingsReturn {
             console.error('重置设置失败:', error);
         }
     }, []);
-
-    // 设置主题
-    const setTheme = useCallback(async (theme: AppSettings['theme']) => {
-        await setSetting('theme', theme);
-    }, [setSetting]);
 
     // 设置 Ollama URL
     const setOllamaUrl = useCallback(async (url: string) => {
@@ -301,7 +268,6 @@ export function useSettings(): UseSettingsReturn {
         setSetting,
         setSettings,
         resetSettings,
-        setTheme,
         setOllamaUrl,
         testOllamaConnection,
         addPromptTemplate,

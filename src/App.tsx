@@ -37,8 +37,7 @@ import './styles/index.css'
 
 
 
-// 排序选项
-type SortOption = 'name-asc' | 'name-desc' | 'time-asc' | 'time-desc'
+
 
 // 生成文件名
 const generateFileName = (format: 'txt' | 'md' = 'md'): string => {
@@ -160,8 +159,7 @@ const AppContent: React.FC = () => {
         }
     })
 
-    // 排序（默认最新优先 time-desc，点击切换为最早优先 time-asc）
-    const [_sortBy, _setSortBy] = useState<SortOption>('time-desc')
+
 
     // 设置面板状态
     const [showSettings, setShowSettings] = useState(false)
@@ -195,8 +193,7 @@ const AppContent: React.FC = () => {
         setShowNurseTemplates(false)
     }
 
-    // 文件预览缓存
-    const [previews, setPreviews] = useState<Record<string, string>>({})
+
 
 
 
@@ -324,26 +321,7 @@ const AppContent: React.FC = () => {
         }
     }, [fileContent])  // 只监听 fileContent
 
-    // 加载文件预览
-    useEffect(() => {
-        const loadPreviews = async () => {
-            const files = getCurrentFolderFiles()
-            for (const file of files) {
-                if (!previews[file.path] && window.fs) {
-                    try {
-                        const content = await window.fs.readFile(file.path.replace(vaultPath + '/', ''))
-                        setPreviews(prev => ({
-                            ...prev,
-                            [file.path]: content.slice(0, 100)
-                        }))
-                    } catch {
-                        // 忽略错误
-                    }
-                }
-            }
-        }
-        if (vaultPath) loadPreviews()
-    }, [activeFolder, fileTree, vaultPath])
+
 
     // 快捷方式监听
     useEffect(() => {
@@ -418,13 +396,7 @@ const AppContent: React.FC = () => {
         })
     }
 
-    // 获取当前文件夹的文件
-    const getCurrentFolderFiles = (): FileNode[] => {
-        if (activeFolder) {
-            return activeFolder.children?.filter(c => !c.isDirectory) || []
-        }
-        return fileTree.filter(n => !n.isDirectory)
-    }
+
 
 
 
