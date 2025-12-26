@@ -1,8 +1,8 @@
 {
-  "name": "witnote",
+  "name": "nursestation",
   "private": true,
   "version": "1.2.3",
-  "description": "智简笔记本 - 大智若简的本地化 AI 写作伴侣 (WitNote)",
+  "description": "A private, local AI-powered workstation for nurse managers",
   "main": "dist-electron/main.js",
   "author": "hooosberg <zikedece@proton.me>",
   "license": "MIT",
@@ -47,8 +47,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.zikedece.witnote",
-    "productName": "WitNote",
+    "appId": "com.nursestation.app",
+    "productName": "NurseStation",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -145,7 +145,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "WitNote",
+      "shortcutName": "NurseStation",
       "artifactName": "${productName}-${version}-setup.${ext}"
     },
     "asar": true

@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="src/icon/智简icon 拷贝.png" alt="WitNote" width="128" height="128">
+  <img src="src/icon/智简icon 拷贝.png" alt="NurseStation" width="128" height="128">
 </p>
 
-<h1 align="center">WitNote (智简笔记本)</h1>
+<h1 align="center">NurseStation</h1>
 
 <p align="center">
-  <strong>Smart Core, Simple Form</strong><br>
-  <i>大智若简，落笔生花</i>
+  <strong>Private AI for Nurse Managers</strong><br>
+  <i>Clinical Documentation Assistant</i>
 </p>
 
 <p align="center">
@@ -23,8 +23,8 @@
 > 
 > Fully compliant with Apple's security & privacy standards. Currently under review. Your support and stars ⭐️ keep us going!
 
-**WitNote** is a local-first AI writing companion for macOS and Windows.
-Supports free switching between **Ollama / WebLLM / Cloud API** engines, paired with an ultra-minimalist **native card interface**, it works right out of the box. No cloud dependency, no privacy concerns — intelligence made lightweight.
+**NurseStation** is a local-first AI workstation for nurse managers on macOS and Windows.
+Supports free switching between **Ollama / WebLLM / Cloud API** engines, paired with an ultra-minimalist **native card interface**, it works right out of the box. No cloud dependency, no privacy concerns — intelligence made lightweight and HIPAA compliant.
 
 ![Local AI](src/pic/witnote%20宣传截图/英文版设计/本地离线ai.jpg)
 

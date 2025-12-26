@@ -1285,5 +1285,5 @@ app.on('window-all-closed', () => {
     }
 })
 
-console.log('🧘 智简笔记本启动中...')
+console.log('🧘 NurseStation starting...')
 console.log('📊 VITE_DEV_SERVER_URL:', VITE_DEV_SERVER_URL || '未设置 (生产模式)')

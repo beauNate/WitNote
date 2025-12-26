@@ -93,10 +93,10 @@ describe('i18n Language Detection', () => {
         });
 
         // 用户手动设置了 zh-TW
-        window.localStorage.setItem('witnote-language', 'zh-TW');
+        window.localStorage.setItem('nursestation-language', 'zh-TW');
 
         // 这里我们模拟 detector 的行为：读取 localStorage -> 设置语言
-        const storedLang = window.localStorage.getItem('witnote-language');
+        const storedLang = window.localStorage.getItem('nursestation-language');
         if (storedLang) {
             await i18n.changeLanguage(storedLang);
         }

@@ -1,6 +1,6 @@
 {
     "app": {
-        "name": "WitNote",
+        "name": "NurseStation",
         "tagline": "Clinical Documentation Assistant",
         "description": "A private, local AI-powered workstation for nurse managers. Helps with shift reports, incident documentation, staff notes, and compliance tasks. All data stays on your device - HIPAA compliant by design."
     },
@@ -253,9 +253,9 @@
         "windowsHint": "💡 On Windows, Cmd corresponds to Ctrl"
     },
     "guide": {
-        "aboutTitle": "About WitNote",
-        "tagline": "Smart Core, Simple Form",
-        "description": "WitNote is a local-first AI writing companion. Supports switching between WebLLM / Ollama / Cloud API engines, paired with a minimalist native card interface. No cloud dependency, no privacy concerns — intelligence made lightweight.",
+        "aboutTitle": "About NurseStation",
+        "tagline": "Clinical Documentation Assistant",
+        "description": "NurseStation is a local-first AI workstation for nurse managers. Supports switching between WebLLM / Ollama / Cloud API engines, paired with a minimalist native card interface. No cloud dependency, no privacy concerns — intelligence made lightweight.",
         "philosophy": "Core Philosophy",
         "philosophySmart": "Smart",
         "philosophySmartDesc": "— WebLLM (Built-in) / Ollama (Local) / Cloud API, three engines to choose freely",
@@ -307,7 +307,7 @@
         "copied": "Copied to clipboard"
     },
     "onboarding": {
-        "welcome": "Welcome to WitNote",
+        "welcome": "Welcome to NurseStation",
         "selectFolderPrompt": "Please select a folder as your note library",
         "selectButton": "Select Folder"
     },

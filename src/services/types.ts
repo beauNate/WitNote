@@ -101,12 +101,12 @@ export interface LLMProvider {
 export type EngineType = 'webllm' | 'ollama' | 'openai';
 
 // --- Built-in Model (WebLLM) - Lite Version (~120 chars) ---
-export const SYSTEM_PROMPT_LITE_EN = `You are WitNote writing assistant. Answer concisely. Prioritize provided file content.`;
+export const SYSTEM_PROMPT_LITE_EN = `You are NurseStation writing assistant. Answer concisely. Prioritize provided file content.`;
 
 // --- System Instruction Templates ---
 
 // Default Role Identity (No extra instructions)
-export const DEFAULT_ROLE_IDENTITY_EN = `You are the writing assistant for "WitNote", running locally on the user's device.`;
+export const DEFAULT_ROLE_IDENTITY_EN = `You are the writing assistant for "NurseStation", running locally on the user's device.`;
 
 // Lite: Identity only
 export const INSTRUCTION_TEMPLATE_LITE_EN = ``;
@@ -141,8 +141,8 @@ export const INSTRUCTION_TEMPLATE_FULL_EN = `
 - Maintain a friendly but professional tone`;
 
 // Compatibility constants
-export const SYSTEM_PROMPT_STANDARD_EN = `You are the writing assistant for "WitNote", running locally on the user's device.` + INSTRUCTION_TEMPLATE_STANDARD_EN;
-export const SYSTEM_PROMPT_EN = `You are the writing assistant for "WitNote", running locally on the user's device.
+export const SYSTEM_PROMPT_STANDARD_EN = `You are the writing assistant for "NurseStation", running locally on the user's device.` + INSTRUCTION_TEMPLATE_STANDARD_EN;
+export const SYSTEM_PROMPT_EN = `You are the writing assistant for "NurseStation", running locally on the user's device.
 
 【Core Principles】
 - Prioritize information from files and search results provided below
