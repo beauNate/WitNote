@@ -50,6 +50,14 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 main: resolve(__dirname, 'index.html')
+            },
+            output: {
+                manualChunks: {
+                    'webllm': ['@mlc-ai/web-llm'],
+                    'vendor': ['react', 'react-dom'],
+                    'katex': ['katex'],
+                    'marked': ['marked']
+                }
             }
         }
     },
