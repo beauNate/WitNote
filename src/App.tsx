@@ -3,7 +3,7 @@
  * Phase 8: 可调整三栏布局 + 增强画廊
  */
 
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -12,13 +12,12 @@ import {
 } from 'react-resizable-panels'
 import {
     Home,
-    Plus,
-    Minus,
     Link,
     Unlink,
     Glasses,
     Coffee,
-    Settings
+    Settings,
+    ClipboardList
 } from 'lucide-react'
 import FileTree, { ColorKey } from './components/FileTree'
 import Editor from './components/Editor'
@@ -26,6 +25,8 @@ import ChatPanel from './components/ChatPanel'
 import InputDialog from './components/InputDialog'
 import { ToastProvider, useToast } from './components/Toast'
 import SettingsPanel from './components/Settings'
+import NurseTemplates from './components/NurseTemplates'
+import Dashboard from './components/Dashboard'
 import ConfirmDialog from './components/ConfirmDialog'
 import { useFileSystem, FileNode } from './hooks/useFileSystem'
 import { useLLM } from './hooks/useLLM'
@@ -34,14 +35,7 @@ import { useSettings } from './hooks/useSettings'
 import { useEngineStore } from './store/engineStore'
 import './styles/index.css'
 
-// 颜色配置 - 红黄绿蓝
-const COLORS: { key: ColorKey; hex: string; name: string }[] = [
-    { key: 'none', hex: 'transparent', name: '无' },
-    { key: 'red', hex: '#ff453a', name: '红' },
-    { key: 'yellow', hex: '#ffcc00', name: '黄' },
-    { key: 'green', hex: '#30d158', name: '绿' },
-    { key: 'blue', hex: '#007aff', name: '蓝' },
-]
+
 
 // 排序选项
 type SortOption = 'name-asc' | 'name-desc' | 'time-asc' | 'time-desc'
@@ -54,7 +48,7 @@ const generateFileName = (format: 'txt' | 'md' = 'md'): string => {
 }
 
 const AppContent: React.FC = () => {
-    const { t, i18n } = useTranslation()
+    const { t } = useTranslation()
     const fileSystem = useFileSystem()
     const engineStore = useEngineStore()
     const llm = useLLM(engineStore)
@@ -168,10 +162,10 @@ const AppContent: React.FC = () => {
 
     // 排序（默认最新优先 time-desc，点击切换为最早优先 time-asc）
     const [_sortBy, _setSortBy] = useState<SortOption>('time-desc')
-    const [filterColor, _setFilterColor] = useState<ColorKey | 'all'>('all')
 
     // 设置面板状态
     const [showSettings, setShowSettings] = useState(false)
+    const [showNurseTemplates, setShowNurseTemplates] = useState(false)
     const [settingsDefaultTab, setSettingsDefaultTab] = useState<'appearance' | 'ai' | 'persona' | 'shortcuts' | 'about'>('appearance')
 
     // 打开设置面板的函数
@@ -180,22 +174,31 @@ const AppContent: React.FC = () => {
         setShowSettings(true)
     }
 
-    // 卡片拖拽排序状态
-    const [cardDragSort, setCardDragSort] = useState<{
-        draggingPath: string | null  // 正在拖拽的卡片路径
-        hoverIndex: number | null     // 悬停的目标索引
-    }>({ draggingPath: null, hoverIndex: null })
+    // 护理模板选择处理
+    const handleSelectTemplate = async (content: string, suggestedName: string) => {
+        let fileName = suggestedName
+        if (!fileName.endsWith('.md') && !fileName.endsWith('.txt')) {
+            fileName += '.md'
+        }
+        
+        // 如果文件已存在，添加时间戳
+        const existingFile = activeFolder 
+            ? activeFolder.children?.find(f => f.name === fileName)
+            : fileTree.find(f => f.name === fileName && !f.isDirectory)
+            
+        if (existingFile) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+            fileName = fileName.replace(/(\.[^.]+)$/, `_${timestamp}$1`)
+        }
+
+        await createNewFile(fileName, content)
+        setShowNurseTemplates(false)
+    }
 
     // 文件预览缓存
     const [previews, setPreviews] = useState<Record<string, string>>({})
 
-    // 画廊右键菜单
-    const [galleryMenu, setGalleryMenu] = useState<{
-        show: boolean
-        x: number
-        y: number
-        node: FileNode | null
-    }>({ show: false, x: 0, y: 0, node: null })
+
 
     // 侧边栏右键菜单(用于空白区域和根目录)
     const [sidebarMenu, setSidebarMenu] = useState<{
@@ -389,10 +392,6 @@ const AppContent: React.FC = () => {
     useEffect(() => {
         const close = (e: MouseEvent) => {
             const target = e.target as HTMLElement
-            // 关闭画廊右键菜单
-            if (!target.closest('.gallery-menu')) {
-                setGalleryMenu(prev => ({ ...prev, show: false }))
-            }
             // 关闭侧边栏右键菜单
             if (!target.closest('.sidebar-menu')) {
                 setSidebarMenu(prev => ({ ...prev, show: false }))
@@ -427,93 +426,11 @@ const AppContent: React.FC = () => {
         return fileTree.filter(n => !n.isDirectory)
     }
 
-    // 根据 activeFolder 获取当前显示的文件列表
-    const currentFiles = useMemo(() => {
-        if (!activeFolder) {
-            // 根目录：只显示根目录下直接的文件（不包括子文件夹内的）
-            return fileTree.filter(n => !n.isDirectory)
-        }
-        // 文件夹：显示该文件夹内的文件
-        return activeFolder.children?.filter(n => !n.isDirectory) || []
-    }, [activeFolder, fileTree])
 
-    // 排序和筛选后的文件
-    const sortedFilteredFiles = useMemo(() => {
-        let files = currentFiles
 
-        // 颜色筛选
-        if (filterColor !== 'all') {
-            files = files.filter(f => getColor(f.path) === filterColor)
-        }
 
-        // 排序逻辑：
-        // 1. 获取保存的顺序列表
-        // 2. 新文件（不在列表中的）按时间倒序插入到列表开头
-        // 3. 按列表顺序排序
-        const orderKey = activeFolder?.path || '__root_files__'
-        const customOrder = folderOrder.getOrder(orderKey)
 
-        // 先按时间倒序排列所有文件
-        const sortedByTime = [...files].sort((a, b) => {
-            return (b.modifiedAt || 0) - (a.modifiedAt || 0)
-        })
 
-        if (customOrder.length === 0) {
-            // 没有自定义顺序，直接按时间倒序
-            return sortedByTime
-        }
-
-        // 有自定义顺序：将新文件插入到顺序列表开头
-        const updatedOrder = [...customOrder]
-        const newFiles: FileNode[] = []
-
-        for (const file of sortedByTime) {
-            if (!customOrder.includes(file.path)) {
-                newFiles.push(file)
-            }
-        }
-
-        // 新文件按时间倒序（已经是了），插入到列表开头
-        for (const file of newFiles) {
-            updatedOrder.unshift(file.path)
-        }
-
-        // 如果有新文件，更新保存的顺序
-        if (newFiles.length > 0) {
-            folderOrder.setOrder(orderKey, updatedOrder)
-        }
-
-        // 按更新后的顺序排序
-        return sortedByTime.sort((a, b) => {
-            const indexA = updatedOrder.indexOf(a.path)
-            const indexB = updatedOrder.indexOf(b.path)
-            if (indexA === -1 && indexB === -1) return 0
-            if (indexA === -1) return 1
-            if (indexB === -1) return -1
-            return indexA - indexB
-        })
-    }, [currentFiles, filterColor, getColor, activeFolder?.path, folderOrder])
-
-    // 拖拽时的虚拟排序预览
-    const virtualOrderFiles = useMemo(() => {
-        if (!cardDragSort.draggingPath || cardDragSort.hoverIndex === null) {
-            return sortedFilteredFiles
-        }
-
-        const files = [...sortedFilteredFiles]
-        const draggedIndex = files.findIndex(f => f.path === cardDragSort.draggingPath)
-        if (draggedIndex === -1) return sortedFilteredFiles
-
-        // 从原位置移除
-        const [draggedFile] = files.splice(draggedIndex, 1)
-        // 插入到新位置
-        const insertIndex = draggedIndex < cardDragSort.hoverIndex
-            ? cardDragSort.hoverIndex - 1
-            : cardDragSort.hoverIndex
-        files.splice(insertIndex, 0, draggedFile)
-
-        return files
-    }, [sortedFilteredFiles, cardDragSort.draggingPath, cardDragSort.hoverIndex])
 
     // 加载中
     if (!isInitialized) {
@@ -533,11 +450,6 @@ const AppContent: React.FC = () => {
         await createNewFolder(name, newFolderTargetDir || undefined)
         setShowNewFolderDialog(false)
         setNewFolderTargetDir('')  // 重置目标目录
-    }
-
-    const handleQuickCreate = async () => {
-        const fileName = generateFileName(settings.defaultFormat)
-        await createNewFile(fileName)
     }
 
     const handleRename = async (newName: string) => {
@@ -560,62 +472,7 @@ const AppContent: React.FC = () => {
         }
     }
 
-    // 画廊右键菜单
-    const handleCardContextMenu = (e: React.MouseEvent, node: FileNode) => {
-        e.preventDefault()
-        setGalleryMenu({ show: true, x: e.clientX, y: e.clientY, node })
-    }
 
-    const handleGalleryAction = (action: 'rename' | 'delete') => {
-        const node = galleryMenu.node
-        setGalleryMenu({ show: false, x: 0, y: 0, node: null })
-        if (node) {
-            if (action === 'rename') {
-                setRenameTarget(node)
-                setShowRenameDialog(true)
-            }
-            else if (action === 'delete') handleDelete(node)
-        }
-    }
-
-    const handleGalleryColor = (color: ColorKey) => {
-        if (galleryMenu.node) {
-            const currentColor = getColor(galleryMenu.node.path)
-            // 如果已经是这个颜色，则取消标记
-            if (currentColor === color) {
-                setColor(galleryMenu.node.path, 'none')
-            } else {
-                setColor(galleryMenu.node.path, color)
-            }
-        }
-        setGalleryMenu({ show: false, x: 0, y: 0, node: null })
-    }
-
-    // 获取画廊节点当前颜色
-    const getGalleryCurrentColor = () => {
-        if (!galleryMenu.node) return 'none'
-        return getColor(galleryMenu.node.path)
-    }
-
-    // 颜色边框样式
-    const getCardStyle = (path: string) => {
-        const color = getColor(path)
-        const c = COLORS.find(x => x.key === color)
-        if (!c || color === 'none') {
-            // 使用 CSS 变量，跟随主题变化
-            return {
-                border: 'var(--border-color)',
-                bg: 'var(--bg-card)',
-                shadow: 'rgba(0, 0, 0, 0.12)'
-            }
-        }
-        // 根据标注颜色设置投影颜色
-        return {
-            border: c.hex,
-            bg: `${c.hex}10`,
-            shadow: `${c.hex}40`
-        }
-    }
 
     return (
         <div className="app-root">
@@ -658,6 +515,13 @@ const AppContent: React.FC = () => {
                 llm={llm}
                 defaultTab={settingsDefaultTab}
                 engineStore={engineStore}
+            />
+
+            {/* 护理模板面板 */}
+            <NurseTemplates
+                isOpen={showNurseTemplates}
+                onClose={() => setShowNurseTemplates(false)}
+                onSelectTemplate={handleSelectTemplate}
             />
 
             {/* 可调整三栏布局 */}
@@ -839,6 +703,13 @@ const AppContent: React.FC = () => {
                                             <div className="sidebar-footer-row">
                                                 <button
                                                     className="sidebar-footer-btn settings"
+                                                    onClick={() => setShowNurseTemplates(true)}
+                                                    title="Nurse Templates"
+                                                >
+                                                    <ClipboardList size={14} strokeWidth={1.5} />
+                                                </button>
+                                                <button
+                                                    className="sidebar-footer-btn settings"
                                                     onClick={() => setShowSettings(true)}
                                                     title="设置"
                                                 >
@@ -903,123 +774,9 @@ const AppContent: React.FC = () => {
                                 modifiedAt={activeFile.modifiedAt}
                             />
                         ) : (
-                            /* 画廊视图 */
-                            <div className="gallery-view">
-                                {!vaultPath ? (
-                                    /* CJK 语言环境（中日韩）下使用竖排显示 */
-                                    <div className={`unconnected-poetry ${['zh', 'ja', 'ko'].some(lang => i18n.language.startsWith(lang)) ? 'vertical-mode' : ''}`}>
-                                        <div className="poetry-content">
-                                            <div className="poetry-lines">
-                                                <h2 className="poetry-title">{t('emptyState.poem.title')}</h2>
-                                                <p className="poetry-line">{t('emptyState.poem.line1')}</p>
-                                                <p className="poetry-line">{t('emptyState.poem.line2')}</p>
-                                                <p className="poetry-line">{t('emptyState.poem.line3')}</p>
-                                                <p className="poetry-line">{t('emptyState.poem.line4')}</p>
-                                            </div>
-                                            <div className="poetry-meta">
-                                                <span>{t('emptyState.poem.meta')}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {/* 画廊头部 - 只有操作按钮 */}
-                                        <div className={`gallery-header ${focusMode ? 'focus-mode' : ''}`}>
-                                            {/* gallery-actions 已移除排序按钮 */}
-                                        </div>
-
-                                        {/* 文件网格 - 第一个永远是新建卡片 */}
-                                        <div className="gallery-grid-square">
-                                            {/* 新建文章卡片 */}
-                                            <div
-                                                className="file-card-square create-card"
-                                                onClick={handleQuickCreate}
-                                            >
-                                                <Plus size={32} strokeWidth={1.2} className="create-card-icon" />
-                                                <div className="create-card-text">{t('gallery.newArticle')}</div>
-                                            </div>
-
-                                            {/* 文件卡片列表 - 使用虚拟排序 */}
-                                            {virtualOrderFiles.map((file, index) => {
-                                                const style = getCardStyle(file.path)
-                                                const preview = previews[file.path] || ''
-                                                const isDragging = cardDragSort.draggingPath === file.path
-                                                return (
-                                                    <div
-                                                        key={file.path}
-                                                        className={`file-card-square ${isDragging ? 'dragging' : ''}`}
-                                                        draggable
-                                                        onDragStart={(e) => {
-                                                            e.dataTransfer.setData('application/json', JSON.stringify({
-                                                                type: 'file',
-                                                                path: file.path,
-                                                                name: file.name,
-                                                                index
-                                                            }))
-                                                            e.dataTransfer.effectAllowed = 'move'
-                                                            // 设置拖拽状态
-                                                            setCardDragSort({
-                                                                draggingPath: file.path,
-                                                                hoverIndex: index
-                                                            })
-                                                        }}
-                                                        onDragOver={(e) => {
-                                                            e.preventDefault()
-                                                            // 如果悬停在其他卡片上，更新 hoverIndex
-                                                            if (cardDragSort.draggingPath && cardDragSort.draggingPath !== file.path) {
-                                                                const rect = e.currentTarget.getBoundingClientRect()
-                                                                const midX = rect.left + rect.width / 2
-                                                                // 根据鼠标在卡片的左/右半边决定插入位置
-                                                                const newHoverIndex = e.clientX < midX ? index : index + 1
-                                                                if (newHoverIndex !== cardDragSort.hoverIndex) {
-                                                                    setCardDragSort(prev => ({
-                                                                        ...prev,
-                                                                        hoverIndex: newHoverIndex
-                                                                    }))
-                                                                }
-                                                            }
-                                                        }}
-                                                        onDragEnd={() => {
-                                                            // 应用排序
-                                                            if (cardDragSort.draggingPath && cardDragSort.hoverIndex !== null) {
-                                                                const paths = virtualOrderFiles.map(f => f.path)
-                                                                const orderKey = activeFolder?.path || '__root_files__'
-                                                                folderOrder.setOrder(orderKey, paths)
-                                                            }
-                                                            // 重置拖拽状态
-                                                            setCardDragSort({ draggingPath: null, hoverIndex: null })
-                                                        }}
-                                                        onClick={() => openFile(file)}
-                                                        onContextMenu={(e) => handleCardContextMenu(e, file)}
-                                                        style={{
-                                                            borderColor: style.border,
-                                                            background: style.bg,
-                                                            '--card-shadow-color': style.shadow
-                                                        } as React.CSSProperties}
-                                                    >
-                                                        <div className="card-title">
-                                                            {file.name.replace(/\.[^/.]+$/, '')}
-                                                        </div>
-                                                        <div className="card-summary">
-                                                            {preview || '...'}
-                                                        </div>
-                                                        <div className="card-date">
-                                                            <span>
-                                                                {file.modifiedAt ? (() => {
-                                                                    const d = new Date(file.modifiedAt)
-                                                                    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-                                                                })() : '--'}
-                                                            </span>
-                                                            <span className={`card-type ${file.extension?.toLowerCase() || 'txt'}`}>
-                                                                {file.extension?.toUpperCase() || 'TXT'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    </>
-                                )}
+                            /* Dashboard View */
+                            <div className="gallery-view" style={{ overflow: 'hidden' }}>
+                                <Dashboard onCreateNote={() => setShowNurseTemplates(true)} />
                             </div>
                         )}
                     </div>
@@ -1037,42 +794,7 @@ const AppContent: React.FC = () => {
                 }
             </PanelGroup >
 
-            {/* 画廊右键菜单 (使用 Portal 渲染到 body) */}
-            {
-                galleryMenu.show && galleryMenu.node && ReactDOM.createPortal(
-                    <div
-                        className="gallery-menu context-menu"
-                        style={{ left: galleryMenu.x, top: galleryMenu.y }}
-                        onMouseDown={e => e.stopPropagation()}
-                    >
-                        <button onClick={() => handleGalleryAction('rename')}>{t('contextMenu.rename')}</button>
 
-                        {/* 红黄绿颜色圆圈 */}
-                        <div className="color-circles">
-                            {COLORS.filter(c => c.key !== 'none').map(c => {
-                                const isActive = getGalleryCurrentColor() === c.key
-                                return (
-                                    <button
-                                        key={c.key}
-                                        className={`color-circle ${isActive ? 'active' : ''}`}
-                                        style={{ background: c.hex }}
-                                        onClick={() => handleGalleryColor(c.key)}
-                                        title={c.name}
-                                    >
-                                        <span className="color-circle-icon">
-                                            {isActive ? <Minus size={10} strokeWidth={2.5} /> : <Plus size={10} strokeWidth={2.5} />}
-                                        </span>
-                                    </button>
-                                )
-                            })}
-                        </div>
-
-                        <div className="menu-divider" />
-                        <button className="danger" onClick={() => handleGalleryAction('delete')}>{t('contextMenu.delete')}</button>
-                    </div>,
-                    document.body
-                )
-            }
 
             {/* 自定义确认对话框 */}
             {confirmDialog?.isOpen && (

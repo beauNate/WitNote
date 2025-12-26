@@ -42,7 +42,7 @@ export interface UseFileSystemReturn {
     getAllFiles: () => FileNode[]  // 递归获取所有文件
     saveFile: () => Promise<void>
     setFileContent: (content: string) => void
-    createNewFile: (name: string, inDirectory?: string) => Promise<void>
+    createNewFile: (name: string, content?: string, inDirectory?: string) => Promise<void>
     createNewFolder: (name: string, inDirectory?: string) => Promise<string | null>
     deleteFile: (path: string) => Promise<void>
     renameItem: (oldPath: string, newName: string) => Promise<void>
@@ -312,7 +312,7 @@ export function useFileSystem(): UseFileSystemReturn {
     /**
      * 创建新文件
      */
-    const createNewFile = useCallback(async (name: string, inDirectory?: string) => {
+    const createNewFile = useCallback(async (name: string, content: string = '', inDirectory?: string) => {
         if (!vaultPath) return
 
         const dir = inDirectory || activeFolder?.path || ''
@@ -320,6 +320,12 @@ export function useFileSystem(): UseFileSystemReturn {
 
         try {
             await window.fs.createFile(path)
+            
+            // 如果有初始内容，写入文件
+            if (content) {
+                await window.fs.writeFile(path, content)
+            }
+
             await refreshTree()
 
             // 标记为新创建的文件

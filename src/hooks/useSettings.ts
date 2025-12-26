@@ -22,6 +22,7 @@ export interface PresetRole {
 
 // 预设角色列表
 export const PRESET_ROLES: PresetRole[] = [
+    { id: 'nurseManager', nameKey: 'roles.nurseManager', icon: 'ClipboardList', promptKey: 'roles.nurseManagerPrompt' },
     { id: 'writer', nameKey: 'roles.writer', icon: 'PenTool', promptKey: 'roles.writerPrompt' },
     { id: 'novelist', nameKey: 'roles.novelist', icon: 'BookOpen', promptKey: 'roles.novelistPrompt' },
     { id: 'diary', nameKey: 'roles.diary', icon: 'Book', promptKey: 'roles.diaryPrompt' },
@@ -72,7 +73,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     ollamaEnabled: true,
 
     // AI 策略 - 默认使用内置 WebLLM 引擎
-    preferredEngine: 'webllm',
+    preferredEngine: 'ollama',
     autoFallback: true,
 
     // 角色设定 - 空字符串表示使用内置默认提示词

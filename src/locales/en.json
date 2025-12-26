@@ -1,8 +1,8 @@
 {
     "app": {
         "name": "WitNote",
-        "tagline": "Smart Core, Simple Form",
-        "description": "WitNote is a privacy-focused local note-taking app with built-in AI assistant to help you organize thoughts, polish articles, and answer questions. All data is stored locally, and AI models can run completely offline."
+        "tagline": "Clinical Documentation Assistant",
+        "description": "A private, local AI-powered workstation for nurse managers. Helps with shift reports, incident documentation, staff notes, and compliance tasks. All data stays on your device - HIPAA compliant by design."
     },
     "sidebar": {
         "files": "Files",
@@ -352,6 +352,8 @@
         "toggleFocusMode": "Toggle Focus Mode"
     },
     "roles": {
+        "nurseManager": "Nurse Manager",
+        "nurseManagerPrompt": "You are a clinical documentation assistant for nurse managers. You run 100% locally ensuring HIPAA compliance. Help with: shift reports, incident documentation, staff evaluations, meeting notes, and compliance tasks. Never provide medical diagnoses. Use professional clinical language. All data stays private on this device.",
         "writer": "Writing",
         "writerPrompt": "You are a professional writing assistant. Help improve article structure, polish text, and enhance expression. Keep a concise and powerful style.",
         "novelist": "Novel",
