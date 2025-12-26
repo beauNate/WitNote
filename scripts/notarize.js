@@ -10,6 +10,12 @@ exports.default = async function notarizing(context) {
         return;
     }
 
+    // 检查公证凭据
+    if (!process.env.APPLE_ID || !process.env.APPLE_APP_SPECIFIC_PASSWORD || !process.env.APPLE_TEAM_ID) {
+        console.log('Skipping notarization - credentials not set');
+        return;
+    }
+
     const appName = context.packager.appInfo.productFilename;
     const appPath = path.join(appOutDir, `${appName}.app`);
 

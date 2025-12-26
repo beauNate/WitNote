@@ -1,3 +1,4 @@
+@import './poetry.css';
 /**
  * ZenNote - 简化样式
  * 确保可见性优先
@@ -4239,8 +4240,6 @@ select:focus {
     display: none !important;
   }
 }
-
-@import './poetry.css';
 
 /* ============ 诗歌排版 (V2) ============ */
 .unconnected-poetry {
